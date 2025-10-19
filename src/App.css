@@ -1,42 +1,329 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/* ================================================================
+   APP.CSS — Estilos generales del proyecto Dr. Fachero
+   ================================================================ */
+
+/* ------------------------------------------------
+   1. CONFIGURACIÓN GENERAL
+--------------------------------------------------*/
+body {
+  font-family: 'Poppins', sans-serif;
+  margin: 0;
+  background: linear-gradient(to bottom, #ffffff 50%, lab(74.48% 21.42 -18.81) 50%);
+  min-height: 100vh; /* mantiene altura mínima sin forzar */
+}
+
+/* ------------------------------------------------
+   2. SECCIÓN WELCOME
+--------------------------------------------------*/
+
+/* --- Título principal --- */
+.titulo_principal {
+  color: #861ac0;
+}
+
+/* --- Bloque superior con imagen y texto --- */
+.contenedor-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  padding: 20px;
+  min-height: calc(100vh - 60px);
+  flex-wrap: wrap;
+}
+
+.contenedor-titulo img {
+  width: 300px;
+  height: auto;
+  border-radius: 12px;
+}
+
+.contenedor-titulo p {
+  color: #333;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+/* --- Imagen principal (ficha) --- */
+.ficha {
+  display: flex;
+  justify-content: center;
+  margin-top: 120px;
+  padding-bottom: 100px;
+}
+
+.ficha img {
+  width: 800px;
+  height: auto;
+  border-radius: 12px;
+}
+
+/* --- Texto debajo de la ficha --- */
+.texto-ficha {
+  text-align: center;
+  max-width: 800px;
+  margin: 100px auto;
+  padding: 0 20px;
+}
+
+.texto-ficha h2 {
+  color: #830cc4;
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+.texto-ficha p {
+  color: #333;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+/* --- Segunda ficha e información --- */
+.ficha2 {
+  display: flex;
+  justify-content: center;
+  margin-top: 100px;
+}
+
+.ficha2 img {
+  width: 100%;
+  max-width: 1000px;
+  height: auto;
+  border-radius: 12px;
+}
+
+.texto-ficha2 {
+  text-align: center;
+  max-width: 900px;
+  margin: 80px auto;
+  padding: 0 20px;
+}
+
+.texto-ficha2 h3 {
+  color: #830cc4;
+  font-weight: 600;
+  font-size: 1.4rem;
+  letter-spacing: 1px;
+}
+
+.texto-ficha2 h2 {
+  color: #4a0376;
+  font-size: 2.2rem;
+  margin: 15px 0;
+}
+
+.texto-ficha2 p {
+  color: #333;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+
+/* --- Imagen tipo GIF ancho completo --- */
+.gif {
+  position: relative;
+  width: 100vw;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.gif img {
+  width: 100vw;
+  max-width: none;
+  height: auto;
+  display: block;
+  border-radius: 0;
+}
+
+/* ------------------------------------------------
+   3. NAVBAR (barra superior)
+--------------------------------------------------*/
+.barra {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background-color: #f2ecf5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30px;
+  color: rgb(176, 11, 190);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 1000;
+}
+
+.logo-barra {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-barra img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.texto-logo {
+  font-weight: 600;
+  font-size: 1.4rem;
+  letter-spacing: 1px;
+}
+
+/* --- Botones del nav --- */
+.nav-links {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.nav-btn {
+  background: transparent;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  color: #4a0376;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nav-btn:hover {
+  background: #f3e8ff;
+}
+
+.nav-btn.active {
+  background: #edd4ff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* --- Ajuste del main global --- */
+main {
+  margin-top: 60px; /* espacio por la barra fija */
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 40px;
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* ------------------------------------------------
+   4. SECCIÓN FUNCIONALIDADES
+--------------------------------------------------*/
+
+/* --- Hero superior lilá --- */
+.func-hero {
+  background: #edd4ff;
+  text-align: center;
+  padding: 80px 20px 60px;
+  border-radius: 12px;
+  margin-top: 20px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.func-hero h1 {
+  color: #6f1ab6;
+  font-size: clamp(24px, 4vw, 42px);
+  margin: 0 0 14px;
+  font-weight: 800;
+}
+
+.func-hero p {
+  color: #555;
+  max-width: 780px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* --- Grid de tarjetas --- */
+.func-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 26px;
+  padding: 36px 0 80px;
+}
+
+.func-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 28px;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  border: 1px solid rgba(0,0,0,.04);
+}
+
+.func-card .icon {
+  font-size: 34px;
+  margin-bottom: 12px;
+}
+
+.func-card h3 {
+  color: #2b2b2b;
+  font-size: 20px;
+  margin: 8px 0 10px;
+  font-weight: 800;
+}
+
+.func-card p {
+  color: #555;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ------------------------------------------------
+   5. RESPONSIVE (para tablets y móviles)
+--------------------------------------------------*/
+@media (max-width: 768px) {
+
+  /* --- Ajustes Welcome --- */
+  .contenedor-titulo {
+    flex-direction: column;
+    text-align: center;
   }
-  to {
-    transform: rotate(360deg);
+
+  .contenedor-titulo img {
+    width: 80%;
   }
-}
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+  .titulo_principal {
+    font-size: 1.8rem;
+    text-align: center;
   }
-}
 
-.card {
-  padding: 2em;
-}
+  .ficha img {
+    width: 90%;
+  }
 
-.read-the-docs {
-  color: #888;
+  .texto-ficha {
+    margin: 60px 20px;
+    padding: 0;
+  }
+
+  /* --- Ajustes Navbar --- */
+  .barra {
+    height: 50px;
+    padding: 0 15px;
+  }
+
+  .texto-logo {
+    font-size: 1.1rem;
+  }
+
+  .logo-barra img {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* --- Ajustes Funcionalidades --- */
+  .func-hero {
+    padding: 60px 16px 40px;
+  }
+
+  .func-grid {
+    gap: 18px;
+  }
 }
