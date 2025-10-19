@@ -40,6 +40,16 @@ function Navbar({ pagina, setPagina }) {
         >
           Funcionalidades
         </button>
+
+        <button
+        type="button"
+        className={'nav-btn ${pagina === "planes" ? "activate" : ""}'}
+        onClick={() => setPagina("planes")}
+        aria-current={pagina === "planes" ? "page" : undefined}
+
+        >
+          Planes
+        </button>
       </nav>
     </header>
   );

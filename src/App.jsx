@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar.jsx";
 import Welcome from "./pages/Welcome.jsx";
 import Funcionalidades from "./pages/Funcionalidades.jsx";
-
+import PLanes from "./pages/planes.jsx";
 function App() {
   // Lee la última página visitada (si existe) o inicia en "inicio"
   const [pagina, setPagina] = useState(
@@ -39,6 +39,7 @@ function App() {
       <main>
         {pagina === "inicio" && <Welcome />}
         {pagina === "funcionalidades" && <Funcionalidades />}
+        {pagina === "planes" && <PLanes/>}
       </main>
     </>
   );
