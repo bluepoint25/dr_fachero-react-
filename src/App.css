@@ -1,210 +1,52 @@
 /* ================================================================
-   APP.CSS — Estilos generales del proyecto Dr. Fachero
+   APP.CSS — Estilos generales del proyecto Dr. Fachero (corregido)
+   Basado en el modelo: https://jenniferalbornoz.github.io/Dr-Fachero/
    ================================================================ */
 
+/* ---------- Paleta raíz y tokens ----------- */
+:root {
+  --color-primary: #830cc4;
+  --color-primary-strong: #a63ae6;
+  --color-bg-light: #e5b3fe;
+  --color-bg-hero: #edd4ff;
+  --color-text-dark: #1e1b23;
+  --color-text-soft: #595564;
+  --shadow-soft: 0 10px 30px rgba(163, 58, 230, 0.15);
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+}
+
 /* ------------------------------------------------
-   1. CONFIGURACIÓN GENERAL
+   1) CONFIGURACIÓN GENERAL
 --------------------------------------------------*/
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
 body {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Poppins', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   margin: 0;
+  /* Fallback + lab() */
+  background: linear-gradient(to bottom, #ffffff 50%, #f3e6ff 50%);
   background: linear-gradient(to bottom, #ffffff 50%, lab(74.48% 21.42 -18.81) 50%);
-  min-height: 100vh; /* mantiene altura mínima sin forzar */
+  min-height: 100vh;
+  color: var(--color-text-dark);
 }
 
-/* ------------------------------------------------
-   2. SECCIÓN WELCOME
---------------------------------------------------*/
+img { max-width: 100%; display: block; }
 
-/* --- Título principal --- */
-.titulo_principal {
-  color: #861ac0;
+/* Utilidades */
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
 }
 
-/* --- Bloque superior con imagen y texto --- */
-.contenedor-titulo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 40px;
-  padding: 20px;
-  min-height: calc(100vh - 60px);
-  flex-wrap: wrap;
-}
-
-.contenedor-titulo img {
-  width: 300px;
-  height: auto;
-  border-radius: 12px;
-}
-
-.contenedor-titulo p {
-  color: #333;
-  font-size: 1.1rem;
-  line-height: 1.6;
-}
-
-/* --- Imagen principal (ficha) --- */
-.ficha {
-  display: flex;
-  justify-content: center;
-  margin-top: 120px;
-  padding-bottom: 100px;
-}
-
-.ficha img {
-  width: 800px;
-  height: auto;
-  border-radius: 12px;
-}
-
-/* --- Texto debajo de la ficha --- */
-.texto-ficha {
-  text-align: center;
-  max-width: 800px;
-  margin: 100px auto;
-  padding: 0 20px;
-}
-
-.texto-ficha h2 {
-  color: #830cc4;
-  font-size: 2rem;
-  margin-bottom: 20px;
-}
-
-.texto-ficha p {
-  color: #333;
-  font-size: 1.1rem;
-  line-height: 1.6;
-}
-
-/* --- Segunda ficha e información --- */
-.ficha2 {
-  display: flex;
-  justify-content: center;
-  margin-top: 100px;
-}
-
-.ficha2 img {
-  width: 100%;
-  max-width: 1000px;
-  height: auto;
-  border-radius: 12px;
-}
-
-.texto-ficha2 {
-  text-align: center;
-  max-width: 900px;
-  margin: 80px auto;
-  padding: 0 20px;
-}
-
-.texto-ficha2 h3 {
-  color: #830cc4;
-  font-weight: 600;
-  font-size: 1.4rem;
-  letter-spacing: 1px;
-}
-
-.texto-ficha2 h2 {
-  color: #4a0376;
-  font-size: 2.2rem;
-  margin: 15px 0;
-}
-
-.texto-ficha2 p {
-  color: #333;
-  font-size: 1.1rem;
-  line-height: 1.6;
-  margin-top: 10px;
-}
-
-/* --- Imagen tipo GIF ancho completo --- */
-.gif {
-  position: relative;
-  width: 100vw;
-  left: 50%;
-  transform: translateX(-50%);
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-}
-
-.gif img {
-  width: 100vw;
-  max-width: none;
-  height: auto;
-  display: block;
-  border-radius: 0;
-}
-
-/* ------------------------------------------------
-   3. NAVBAR (barra superior)
---------------------------------------------------*/
-.barra {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 60px;
-  background-color: #f2ecf5;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 30px;
-  color: rgb(176, 11, 190);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  z-index: 1000;
-}
-
-.logo-barra {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.logo-barra img {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  object-fit: cover;
-}
-
-.texto-logo {
-  font-weight: 600;
-  font-size: 1.4rem;
-  letter-spacing: 1px;
-}
-
-/* --- Botones del nav --- */
-.nav-links {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-.nav-btn {
-  background: transparent;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 9999px;
-  color: #4a0376;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.nav-btn:hover {
-  background: #f3e8ff;
-}
-
-.nav-btn.active {
-  background: #edd4ff;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
-
-/* --- Ajuste del main global --- */
+/* Layout principal (compensa navbar fija) */
 main {
-  margin-top: 60px; /* espacio por la barra fija */
+  margin-top: 60px;
   max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
@@ -213,349 +55,354 @@ main {
 }
 
 /* ------------------------------------------------
-   4. SECCIÓN FUNCIONALIDADES
+   2) NAVBAR (barra superior fija)
 --------------------------------------------------*/
-
-/* --- Hero superior lilá --- */
-.func-hero {
-  background: #edd4ff;
-  text-align: center;
-  padding: 80px 20px 60px;
-  border-radius: 12px;
-  margin-top: 20px;
+.barra {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 60px;
+  background-color: #f2ecf5;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 1000;
 }
 
+.logo-barra { display: flex; align-items: center; gap: 10px; }
+.logo-barra img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+.texto-logo { font-weight: 600; font-size: 1.4rem; letter-spacing: 1px; color: #3a0a6a; }
+
+.nav-links {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; flex-wrap: wrap; max-width: 100%;
+}
+.nav-btn {
+  background: transparent; border: none; padding: 8px 12px;
+  border-radius: 9999px; color: #4a0376; font-weight: 600;
+  cursor: pointer; flex: 0 0 auto; white-space: nowrap;
+}
+.nav-btn:hover { background: #f3e8ff; }
+.nav-btn.active { background: #edd4ff; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+/* ------------------------------------------------
+   3) WELCOME (hero + fichas + gif)
+--------------------------------------------------*/
+.titulo_principal { color: #861ac0; }
+
+.contenedor-titulo {
+  display: flex; align-items: center; justify-content: center;
+  gap: 40px; padding: 20px;
+  min-height: calc(100vh - 60px);
+  flex-wrap: wrap; text-align: left;
+}
+.contenedor-titulo p { color: #333; font-size: 1.1rem; line-height: 1.6; }
+.contenedor-titulo img { width: 300px; height: auto; border-radius: 12px; }
+.imagen-principal { border-radius: 12px; }
+
+.ficha { display: flex; justify-content: center; margin-top: 120px; padding-bottom: 100px; }
+.ficha img { width: 800px; height: auto; border-radius: 12px; }
+
+.texto-ficha { text-align: center; max-width: 800px; margin: 100px auto; padding: 0 20px; }
+.texto-ficha h2 { color: var(--color-primary); font-size: 2rem; margin-bottom: 20px; }
+.texto-ficha p { color: #333; font-size: 1.1rem; line-height: 1.6; }
+
+.ficha2 { display: flex; justify-content: center; margin-top: 100px; }
+.ficha2 img { width: 100%; max-width: 1000px; height: auto; border-radius: 12px; }
+
+.texto-ficha2 { text-align: center; max-width: 900px; margin: 80px auto; padding: 0 20px; }
+.texto-ficha2 h3 { color: var(--color-primary); font-weight: 600; font-size: 1.4rem; letter-spacing: 1px; }
+.texto-ficha2 h2 { color: #4a0376; font-size: 2.2rem; margin: 15px 0; }
+.texto-ficha2 p { color: #333; font-size: 1.1rem; line-height: 1.6; margin-top: 10px; }
+
+/* GIF ancho completo */
+.gif { position: relative; width: 100vw; left: 50%; transform: translateX(-50%); margin: 0; padding: 0; overflow: hidden; }
+.gif img { width: 100vw; max-width: none; height: auto; display: block; border-radius: 0; }
+
+/* ------------------------------------------------
+   4) FUNCIONALIDADES
+--------------------------------------------------*/
+.func-hero {
+  background: var(--color-bg-hero);
+  text-align: center; padding: 80px 20px 60px;
+  border-radius: 12px; margin-top: 20px;
+}
 .func-hero h1 {
   color: #6f1ab6;
   font-size: clamp(24px, 4vw, 42px);
-  margin: 0 0 14px;
-  font-weight: 800;
+  margin: 0 0 14px; font-weight: 800;
 }
+.func-hero p { color: #555; max-width: 780px; margin: 0 auto; line-height: 1.6; }
 
-.func-hero p {
-  color: #555;
-  max-width: 780px;
-  margin: 0 auto;
-  line-height: 1.6;
-}
-
-/* --- Grid de tarjetas --- */
 .func-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 26px;
-  padding: 36px 0 80px;
+  gap: 26px; padding: 36px 0 80px;
 }
-
 .func-card {
-  background: #fff;
-  border-radius: 14px;
-  padding: 28px;
-  text-align: center;
-  box-shadow: 0 8px 24px rgba(0,0,0,.08);
-  border: 1px solid rgba(0,0,0,.04);
+  background: #fff; border-radius: 14px; padding: 28px; text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,.08); border: 1px solid rgba(0,0,0,.04);
 }
+.func-card .icon { font-size: 34px; margin-bottom: 12px; }
+.func-card h3 { color: #2b2b2b; font-size: 20px; margin: 8px 0 10px; font-weight: 800; }
+.func-card p { color: #555; line-height: 1.6; margin: 0; }
 
-.func-card .icon {
-  font-size: 34px;
-  margin-bottom: 12px;
-}
+/* ------------------------------------------------
+   5) ¿POR QUÉ? (porque.jsx)
+--------------------------------------------------*/
+.porque .section { padding: 2rem 1rem; }
+.porque .container { max-width: 1100px; margin: 0 auto; }
 
-.func-card h3 {
-  color: #2b2b2b;
-  font-size: 20px;
-  margin: 8px 0 10px;
-  font-weight: 800;
-}
-
-.func-card p {
-  color: #555;
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* ====== ¿Por qué? ====== */
-.porque .section {
-  padding: 2rem 1rem;
-}
-.porque .container {
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.section-title {
-  text-align: center;
-  font-size: clamp(1.5rem, 2.5vw, 2.2rem);
-  margin: 0 0 0.5rem;
-}
-.section-subtitle {
-  text-align: center;
-  opacity: 0.9;
-  max-width: 800px;
-  margin: 0 auto 1.5rem;
-}
+.section-title { text-align: center; font-size: clamp(1.5rem, 2.5vw, 2.2rem); margin: 0 0 0.5rem; }
+.section-subtitle { text-align: center; opacity: 0.9; max-width: 800px; margin: 0 auto 1.5rem; }
 
 .features-grid {
-  display: grid;
-  gap: 1rem;
+  display: grid; gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 .feature-card {
-  background: var(--card-bg, #fff);
-  border: 1px solid rgba(0,0,0,0.06);
-  border-radius: 16px;
-  padding: 1rem;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+  background: #fff; border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 16px; padding: 1rem; box-shadow: 0 6px 20px rgba(0,0,0,0.06);
 }
-.feature-card .icon {
-  font-size: 1.6rem;
-  line-height: 1;
-  margin-bottom: 0.5rem;
-}
+.feature-card .icon { font-size: 1.6rem; line-height: 1; margin-bottom: 0.5rem; }
 
-.section-light {
-  background: #faf7ff; /* lila muy claro */
-}
+.section-light { background: #faf7ff; }
 .split-section {
-  display: grid;
-  gap: 1.25rem;
-  grid-template-columns: 1fr;
-  align-items: center;
+  display: grid; gap: 1.25rem; grid-template-columns: 1fr; align-items: center;
 }
 @media (min-width: 900px) {
-  .split-section {
-    grid-template-columns: 1.1fr 0.9fr;
-  }
+  .split-section { grid-template-columns: 1.1fr 0.9fr; }
 }
 .split-section-text .section-badge {
-  display: inline-block;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  background: #e5b3fe; /* badge lila */
-  color: #3a0a6a;
-  margin-bottom: 0.6rem;
+  display: inline-block; font-size: 0.75rem; padding: 0.25rem 0.6rem;
+  border-radius: 999px; background: var(--color-bg-light); color: #3a0a6a; margin-bottom: 0.6rem;
 }
-.split-section-text h2 {
-  margin: 0.25rem 0 0.75rem;
-}
+.split-section-text h2 { margin: 0.25rem 0 0.75rem; }
 .split-section-image img {
-  width: 100%;
-  height: auto;
-  border-radius: 16px;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.08);
+  width: 100%; height: auto; border-radius: 16px; box-shadow: 0 8px 28px rgba(0,0,0,0.08);
 }
 
-/* Reutiliza tus estilos .btn si ya existen; si no: */
-.btn {
-  cursor: pointer;
-  border-radius: 12px;
-  padding: 0.65rem 1rem;
-  border: 1px solid transparent;
-  font-weight: 600;
-}
-.btn--primary {
-  background: #a63ae6; /* morado Dr. Fachero */
-  color: #fff;
-}
+/* Botón genérico */
+.btn { cursor: pointer; border-radius: 12px; padding: 0.65rem 1rem; border: 1px solid transparent; font-weight: 600; }
+.btn--primary { background: var(--color-primary-strong); color: #fff; }
 
-/* ====== Blog ====== */
-/* =========================================== */
-/* ========= BLOG - DR. FACHERO STYLE =========*/
-/* =========================================== */
+/* ------------------------------------------------
+   6) BLOG (blog.jsx) — con correcciones de clases
+--------------------------------------------------*/
+.blog .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
 
-/* ---------- Paleta principal ---------- */
-:root {
-  --color-primary: #830cc4;          /* morado principal */
-  --color-primary-strong: #a63ae6;   /* morado brillante */
-  --color-bg-light: #e5b3fe;         /* lila claro de fondo */
-  --color-text-dark: #1e1b23;        /* texto principal */
-  --color-text-soft: #595564;        /* texto secundario */
-  --shadow-soft: 0 10px 30px rgba(163, 58, 230, 0.15);
-  --radius-xl: 22px;
-}
-
-/* ---------- Contenedor base ---------- */
-.blog .container {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
-
-/* ---------- Encabezado ---------- */
 .blog-header {
   background: var(--color-bg-light);
-  padding: 72px 0 64px;
-  text-align: center;
+  padding: 72px 0 64px; text-align: center;
 }
-
 .blog-header h1 {
-  font-size: clamp(34px, 5vw, 56px);
-  color: var(--color-primary);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  margin-bottom: 12px;
+  font-size: clamp(34px, 5vw, 56px); color: var(--color-primary);
+  font-weight: 800; letter-spacing: -0.02em; margin-bottom: 12px;
 }
+.blog-header p { font-size: clamp(16px, 1.4vw, 18px); color: var(--color-text-soft); max-width: 760px; margin: 0 auto; line-height: 1.7; }
 
-.blog-header p {
-  font-size: clamp(16px, 1.4vw, 18px);
-  color: var(--color-text-soft);
-  max-width: 760px;
-  margin: 0 auto;
-  line-height: 1.7;
+/* feed: corregimos typo .blog-fedd -> .blog-feed (usa esta clase en JSX o deja ambas) */
+.blog-feed, .blog-fedd { padding: 56px 0 80px; }
+
+.full-blog-post { max-width: 860px; margin: 0 auto 84px auto; text-align: left; }
+
+.badge, .category, .badge--lilac {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 6px 14px; font-size: 14px; font-weight: 700;
+  color: var(--color-primary); background-color: #f4e6ff;
+  border-radius: 999px; line-height: 1; letter-spacing: 0.01em;
+  border: none; box-shadow: 0 4px 14px rgba(166, 58, 230, 0.08);
 }
+.badge--lg { font-size: 15px; padding: 8px 18px; }
+.badge--sm { font-size: 12px; padding: 4px 10px; }
 
-/* ---------- Feed de artículos ---------- */
-.blog-feed {
-  padding: 56px 0 80px;
-}
-
-/* ---------- Artículo completo ---------- */
-.full-blog-post {
-  max-width: 860px;
-  margin: 0 auto 84px auto;
-}
-
-/* ---------- Categoría tipo píldora ---------- */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 14px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #830cc4;
-  background-color: #f4e6ff;
-  border-radius: 999px;
-  line-height: 1;
-  letter-spacing: 0.01em;
-  border: none;
-  cursor: default;
-  user-select: none;
-  box-shadow: 0 4px 14px rgba(166, 58, 230, 0.08);
-}
-
-/* Tamaños opcionales */
-.badge--lg {
-  font-size: 15px;
-  padding: 8px 18px;
-}
-
-.badge--sm {
-  font-size: 12px;
-  padding: 4px 10px;
-}
-
-/* ---------- Título de cada post ---------- */
 .full-blog-post h2 {
-  font-size: clamp(28px, 3.2vw, 44px);
-  line-height: 1.18;
-  color: var(--color-text-dark);
-  margin-bottom: 18px;
-  font-weight: 800;
+  font-size: clamp(28px, 3.2vw, 44px); line-height: 1.18;
+  color: var(--color-text-dark); margin: 12px 0 18px; font-weight: 800;
 }
+.full-blog-post img.featured-image { width: 100%; border-radius: 20px; margin: 12px 0 26px; box-shadow: var(--shadow-soft); }
 
-/* ---------- Imagen destacada ---------- */
-.full-blog-post img.featured-image {
-  width: 100%;
-  border-radius: 20px;
-  margin: 12px 0 26px;
-  box-shadow: var(--shadow-soft);
+/* post-content: corregimos classname -> className en JSX; mantenemos selector por si acaso */
+.full-blog-post .post-content, .full-blog-post [classname="post-content"] {
+  font-size: 18px; color: var(--color-text-dark); line-height: 1.95; letter-spacing: 0.003em;
 }
+.full-blog-post .post-content p { margin-bottom: 22px; }
+.full-blog-post .post-content ul { list-style: disc; padding-left: 26px; margin-bottom: 22px; }
 
-/* ---------- Contenido del artículo ---------- */
-.full-blog-post .post-content p {
-  font-size: 18px;
-  color: var(--color-text-dark);
-  line-height: 1.95;
-  margin-bottom: 22px;
-  letter-spacing: 0.003em;
-}
-
-.full-blog-post .post-content ul {
-  list-style: disc;
-  padding-left: 26px;
-  margin-bottom: 22px;
-  color: var(--color-text-dark);
-  line-height: 1.9;
-}
-
-/* ---------- Divisor visual entre posts ---------- */
+/* Separador visual */
 .blog-divider {
-  height: 18px;
-  margin: 28px 0 8px;
-  background: linear-gradient(
-    180deg,
-    rgba(166, 58, 230, 0.18) 0%,
-    rgba(166, 58, 230, 0.10) 60%,
-    rgba(166, 58, 230, 0.00) 100%
-  );
+  height: 18px; margin: 28px 0 8px;
+  background: linear-gradient(180deg, rgba(166, 58, 230, 0.18) 0%, rgba(166, 58, 230, 0.10) 60%, rgba(166, 58, 230, 0.00) 100%);
   border-radius: var(--radius-xl);
 }
 
-/* ---------- Accesibilidad ---------- */
-.sr-only {
-  position: absolute !important;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+/* ------------------------------------------------
+   7) PLANES (planes.jsx) — secciones y tarjetas
+--------------------------------------------------*/
+.planes {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 20px 80px;
+  text-align: center;
+}
+.planes > h1 {
+  color: #6f1ab6;
+  font-size: clamp(26px, 3.8vw, 40px);
+  margin: 8px 0 6px;
+  font-weight: 800; letter-spacing: -0.02em;
+}
+.planes > p {
+  color: #544b5a; max-width: 760px; margin: 0 auto 28px; line-height: 1.7;
 }
 
+/* Grid tarjetas */
+.plan-estandar {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 22px; align-items: stretch; margin-top: 18px;
+}
+
+/* Tarjeta base */
+.plan-card {
+  background: #fff; border-radius: var(--radius-lg);
+  padding: 26px 22px; border: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 14px 36px rgba(163, 58, 230, 0.10);
+  text-align: left; position: relative; overflow: hidden;
+}
+.plan-card header h3 {
+  margin: 0 0 8px; font-weight: 800; letter-spacing: 0.2px;
+  color: #2b2433; font-size: 1.4rem;
+}
+.precio-estandar, .plan-desc { color: #5e516e; }
+
+/* Precio */
+.plan-card .precio {
+  font-size: 40px; font-weight: 900; color: var(--color-primary);
+  margin: 10px 0 14px; letter-spacing: -0.02em;
+}
+.plan-card .precio span { font-size: 14px; font-weight: 600; color: #7a6f84; }
+
+/* Lista */
+.plan-card ul, .plan-card .plan-list { list-style: none; padding: 0; margin: 0 0 18px; }
+.plan-card li {
+  display: flex; gap: 8px; align-items: flex-start;
+  color: #3e3845; line-height: 1.55; padding: 6px 0;
+}
+
+/* Botones */
+.btn-plan {
+  width: 100%; padding: 12px 16px; border-radius: 12px; font-weight: 700;
+  cursor: pointer; transition: transform .06s ease, box-shadow .2s ease, background .2s ease, color .2s ease;
+  border: 1px solid transparent;
+}
+.btn-plan:active { transform: translateY(1px); }
+.btn-outline { background: #fff; color: #6f1ab6; border-color: #d9c2f4; }
+.btn-outline:hover { background: #f7ecff; box-shadow: 0 8px 22px rgba(166,58,230,.12); }
+.btn-solid { background: var(--color-primary-strong); color: #fff; }
+.btn-solid:hover { box-shadow: 0 10px 26px rgba(166,58,230,.22); }
+
+/* Pro destacada */
+.plan-card.plan-pro {
+  background: linear-gradient(180deg, #f7eeff 0%, #ffffff 38%);
+  border: 1px solid #e7d5fb; box-shadow: 0 18px 42px rgba(163, 58, 230, 0.18);
+}
+.plan-card.plan-pro .precio { color: #6f1ab6; }
+
+/* Cinta recomendado */
+.plan-card.plan-pro::before {
+  content: "RECOMENDADO";
+  position: absolute; top: 14px; right: -44px; transform: rotate(32deg);
+  background: var(--color-primary-strong); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .12em;
+  padding: 6px 60px; box-shadow: 0 8px 18px rgba(166,58,230,.28);
+}
+
+/* CTA inferior */
+.plan-cta {
+  margin-top: 44px; display: grid; grid-template-columns: 1.05fr .95fr; gap: 22px; align-items: center;
+  background: #faf7ff; border: 1px solid #eadbfd; border-radius: var(--radius-lg); padding: 18px;
+}
+.plan-cta .cta-image img {
+  width: 100%; height: auto; border-radius: 14px; box-shadow: 0 10px 26px rgba(0,0,0,.06);
+}
+.plan-cta .cta-content { text-align: left; padding: 8px 6px; }
+.plan-cta .badge {
+  background: var(--color-bg-light); color: #3a0a6a; font-weight: 800; font-size: 12px;
+  border-radius: 999px; padding: 6px 12px; display: inline-block; margin-bottom: 8px;
+  box-shadow: 0 6px 18px rgba(166,58,230,.15);
+}
+.plan-cta h2 { margin: 6px 0 10px; color: #4a0376; font-size: clamp(20px, 2.6vw, 30px); }
+.plan-cta p { color: #4b4557; line-height: 1.7; margin: 0 0 14px; }
+.plan-cta .cta-btn {
+  display: inline-block; background: var(--color-primary-strong); color: #fff; font-weight: 800; text-decoration: none;
+  padding: 12px 18px; border-radius: 12px; box-shadow: 0 10px 26px rgba(166,58,230,.22);
+}
+.plan-cta .cta-btn:hover { filter: brightness(1.05); }
+
 /* ------------------------------------------------
-   5. RESPONSIVE (para tablets y móviles)
+   8) CONTACTO (contacto.jsx)
 --------------------------------------------------*/
+.contacto-page { max-width: 1100px; margin: 0 auto; padding: 36px 20px 80px; }
+.contact-grid {
+  display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; align-items: start;
+}
+.contact-info { text-align: left; }
+.contact-info h1 {
+  color: #4a0376; font-size: clamp(28px, 4vw, 44px); line-height: 1.15; margin: 0 0 8px; font-weight: 900;
+}
+.contact-lead { color: #4b4557; line-height: 1.7; margin: 0 0 16px; }
+.contact-subtitle { margin: 16px 0 8px; color: #31154a; }
+.contact-bullets { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
+.contact-bullets li { display: flex; gap: 10px; align-items: center; color: #3e3845; }
+.bullet-icon { font-size: 20px; line-height: 1; }
+
+/* Tarjeta formulario */
+.contact-form-card {
+  background: #fff; border: 1px solid rgba(0,0,0,.06); border-radius: 16px;
+  padding: 22px; box-shadow: 0 10px 28px rgba(0,0,0,.06); text-align: left;
+}
+.contact-form-card h2 { margin: 0 0 12px; color: #2b2433; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 0.9rem; color: #4b4557; }
+.field input, .field textarea, .field select {
+  border: 1px solid #e5d9f7; border-radius: 10px; padding: 10px 12px; font-size: 0.95rem; outline: none;
+}
+.field textarea { resize: vertical; }
+.input-error { border-color: #e44; background: #fff7f7; }
+.input-hint { color: #b00; font-size: 0.8rem; }
+
+.phone-group { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 8px; }
+
+.contact-form-card button[type="submit"] {
+  margin-top: 8px; background: var(--color-primary-strong); color: #fff; font-weight: 800;
+  border: none; border-radius: 10px; padding: 12px 16px; cursor: pointer;
+  box-shadow: 0 10px 26px rgba(166,58,230,.22);
+}
+.contact-form-card button[disabled] { opacity: .7; cursor: default; }
+.form-ok { color: #1f7a39; font-weight: 700; margin-top: 10px; }
+
+/* ------------------------------------------------
+   9) RESPONSIVE
+--------------------------------------------------*/
+@media (max-width: 900px) {
+  .plan-cta { grid-template-columns: 1fr; padding: 16px; }
+  .plan-card { text-align: left; }
+  .contact-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .phone-group { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 768px) {
+  .contenedor-titulo { flex-direction: column; text-align: center; }
+  .contenedor-titulo img { width: 80%; }
+  .titulo_principal { font-size: 1.8rem; text-align: center; }
+  .ficha img { width: 90%; }
+  .texto-ficha { margin: 60px 20px; padding: 0; }
 
-  /* --- Ajustes Welcome --- */
-  .contenedor-titulo {
-    flex-direction: column;
-    text-align: center;
-  }
+  .barra { height: 50px; padding: 0 15px; }
+  .texto-logo { font-size: 1.1rem; }
+  .logo-barra img { width: 30px; height: 30px; }
 
-  .contenedor-titulo img {
-    width: 80%;
-  }
+  .func-hero { padding: 60px 16px 40px; }
+  .func-grid { gap: 18px; }
 
-  .titulo_principal {
-    font-size: 1.8rem;
-    text-align: center;
-  }
-
-  .ficha img {
-    width: 90%;
-  }
-
-  .texto-ficha {
-    margin: 60px 20px;
-    padding: 0;
-  }
-
-  /* --- Ajustes Navbar --- */
-  .barra {
-    height: 50px;
-    padding: 0 15px;
-  }
-
-  .texto-logo {
-    font-size: 1.1rem;
-  }
-
-  .logo-barra img {
-    width: 30px;
-    height: 30px;
-  }
-
-  /* --- Ajustes Funcionalidades --- */
-  .func-hero {
-    padding: 60px 16px 40px;
-  }
-
-  .func-grid {
-    gap: 18px;
-  }
+  main { padding: 0 20px; }
 }

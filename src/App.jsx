@@ -12,6 +12,9 @@ import Welcome from "./pages/Welcome.jsx";
 import Funcionalidades from "./pages/Funcionalidades.jsx";
 import Porque from "./pages/porque.jsx";
 import Blog from "./pages/blog.jsx";
+import PLanes from "./pages/planes.jsx";
+import Contacto from "./pages/Contacto.jsx";
+
 
 function App() {
   // Lee la última página visitada (si existe) o inicia en "inicio"
@@ -42,7 +45,9 @@ function App() {
         {pagina === "inicio" && <Welcome />}
         {pagina === "funcionalidades" && <Funcionalidades />}
         {pagina === "porque" && <Porque setPagina={setPagina} />}
-        {pagina === "blog" && <Blog />}
+        {pagina === "blog" && <Blog />}7
+        {pagina === "planes" && <PLanes />}
+        {pagina === "contacto" && <Contacto />}
       </main>
     </>
   );

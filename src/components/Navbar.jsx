@@ -9,17 +9,13 @@ import logodr from "../assets/logo_drfachero.png";
 function Navbar({ pagina, setPagina }) {
   return (
     <header className="barra">
-      {/* -------------------------------------------- */}
-      {/* Lado izquierdo: logo + nombre del proyecto */}
-      {/* -------------------------------------------- */}
+      {/* Logo + nombre */}
       <div className="logo-barra">
         <img src={logodr} alt="Logo de Dr. Fachero" />
         <h2 className="texto-logo">Dr. Fachero</h2>
       </div>
 
-      {/* -------------------------------------------- */}
-      {/* Lado derecho: botones de navegación */}
-      {/* -------------------------------------------- */}
+      {/* Navegación */}
       <nav className="nav-links" aria-label="Navegación principal">
         <button
           type="button"
@@ -32,9 +28,7 @@ function Navbar({ pagina, setPagina }) {
 
         <button
           type="button"
-          className={`nav-btn ${
-            pagina === "funcionalidades" ? "active" : ""
-          }`}
+          className={`nav-btn ${pagina === "funcionalidades" ? "active" : ""}`}
           onClick={() => setPagina("funcionalidades")}
           aria-current={pagina === "funcionalidades" ? "page" : undefined}
         >
@@ -42,20 +36,39 @@ function Navbar({ pagina, setPagina }) {
         </button>
 
         <button
-        type="button"
-        className={`nav-btn ${pagina === "porque" ? "active" : ""}`}
-        onClick={() => setPagina("porque")}
-        aria-current={pagina === "porque" ? "page" : undefined}
+          type="button"
+          className={`nav-btn ${pagina === "porque" ? "active" : ""}`}
+          onClick={() => setPagina("porque")}
+          aria-current={pagina === "porque" ? "page" : undefined}
         >
           ¿Por qué?
         </button>
+
         <button
-        type="button"
-        className={`nav-btn ${pagina === "blog" ? "active" : ""}`}
-        onClick={() => setPagina("blog")}
-        aria-current={pagina === "blog" ? "page" : undefined}
+          type="button"
+          className={`nav-btn ${pagina === "blog" ? "active" : ""}`}
+          onClick={() => setPagina("blog")}
+          aria-current={pagina === "blog" ? "page" : undefined}
         >
-           Blog
+          Blog
+        </button>
+
+        <button
+          type="button"
+          className={`nav-btn ${pagina === "planes" ? "active" : ""}`}
+          onClick={() => setPagina("planes")}
+          aria-current={pagina === "planes" ? "page" : undefined}
+        >
+          Planes
+        </button>
+
+        <button
+          type="button"
+          className={`nav-btn ${pagina === "contacto" ? "active" : ""}`}
+          onClick={() => setPagina("contacto")}
+          aria-current={pagina === "contacto" ? "page" : undefined}
+        >
+          Contacto
         </button>
       </nav>
     </header>
