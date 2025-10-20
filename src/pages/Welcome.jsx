@@ -8,7 +8,7 @@
 import imgprincipal from "../assets/draenmaorada3.png"; // Imagen principal (doctora)
 import ficha from "../assets/drficha2.png";              // Imagen de ficha médica
 import ficha2 from "../assets/ficha3.png";               // Segunda ficha informativa
-import gif from "../assets/fiestas_patrias1.gif";        // Banner animado
+import gif from "../assets/fiestas_real.gif";      // Banner animado
 
 function Welcome() {
   return (
@@ -79,7 +79,7 @@ function Welcome() {
       {/* 4️⃣ Banner animado final (GIF) */}
       {/* -------------------------------------------- */}
       <div className="gif">
-        <img src={gif} alt="Banner Fiestas Patrias" />
+        <img src={gif} alt="Banner Halloween" />
       </div>
     </main>
   );

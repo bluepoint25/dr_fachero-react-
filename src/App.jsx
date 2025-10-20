@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar.jsx";
+import Footer from "./components/Footer";
 import Welcome from "./pages/Welcome.jsx";
 import Funcionalidades from "./pages/Funcionalidades.jsx";
 import Porque from "./pages/porque.jsx";
@@ -49,8 +50,10 @@ function App() {
         {pagina === "planes" && <PLanes />}
         {pagina === "contacto" && <Contacto />}
       </main>
+      <Footer pagina={pagina} setPagina={setPagina} />
     </>
   );
+
 }
 
 export default App;
