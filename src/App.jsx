@@ -47,7 +47,7 @@ function App() {
         {pagina === "funcionalidades" && <Funcionalidades />}
         {pagina === "porque" && <Porque setPagina={setPagina} />}
         {pagina === "blog" && <Blog />}
-        {pagina === "planes" && <PLanes />}
+        {pagina === "planes" && <PLanes  setPagina={setPagina} />}
         {pagina === "contacto" && <Contacto />}
       </main>
       <Footer pagina={pagina} setPagina={setPagina} />

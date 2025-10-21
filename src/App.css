@@ -56,24 +56,34 @@ main {
   text-align: center;
 }
 
-/* ------------------------------------------------
+/* --------------------------------------------------
    2) NAVBAR (barra superior fija)
 --------------------------------------------------*/
-.barra {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 60px;
-  background-color: #f2ecf5;
-  display: flex; align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  z-index: 1000;
+:root{
+  --navbar-h: 60px; /* altura de la barra */
 }
 
-.logo-barra { display: flex; align-items: center; gap: 10px; }
+.barra {
+  position: sticky;
+  top: 0; left: 0; width: 100%;
+  height: var(--navbar-h);
+  background-color: #f2ecf5;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px; /* fix */
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 50;
+  border-bottom: 1px solid #eee;
+}
+
+/* Logo */
+.logo-barra {
+  display: flex; align-items: center; gap: 10px;
+  background: none; border: 0; cursor: pointer;
+}
 .logo-barra img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
 .texto-logo { font-weight: 600; font-size: 1.4rem; letter-spacing: 1px; color: #3a0a6a; }
 
+/* Links (desktop) */
 .nav-links {
   display: flex; align-items: center; justify-content: center;
   gap: 12px; flex-wrap: wrap; max-width: 100%;
@@ -86,10 +96,66 @@ main {
 .nav-btn:hover { background: #f3e8ff; }
 .nav-btn.active { background: #edd4ff; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
 
+/* ----- Botón hamburguesa (oculto en desktop) ----- */
+.hamburger {
+  display: none; position: relative; width: 32px; height: 24px;
+  background: none; border: 0; cursor: pointer; padding: 0;
+}
+.hamburger span {
+  position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px;
+  background: #3a0a6a; transition: transform .18s ease, opacity .18s ease, top .18s;
+}
+.hamburger span:nth-child(1){ top: 2px; }
+.hamburger span:nth-child(2){ top: 10px; }
+.hamburger span:nth-child(3){ top: 18px; }
+.hamburger.is-open span:nth-child(1){ top: 10px; transform: rotate(45deg); }
+.hamburger.is-open span:nth-child(2){ opacity: 0; }
+.hamburger.is-open span:nth-child(3){ top: 10px; transform: rotate(-45deg); }
+
+/* Overlay (cerrar tocando fuera) */
+.nav-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.35);
+  z-index: 51;           /* debajo del panel (52) y encima de la barra (50) */
+  display: none;
+}
+
+/* ============ MÓVIL ============ */
+@media (max-width: 960px){
+  .hamburger { display: block; z-index: 53; }
+
+  /* Panel off-canvas debajo de la barra */
+  .nav-links{
+    position: fixed; z-index: 52;
+    top: var(--navbar-h);
+    right: 0;
+    height: calc(100dvh - var(--navbar-h));
+    width: min(76vw, 320px);
+    background: #fff;
+    border-left: 1px solid #eee;
+    padding: 16px 20px 20px;
+    display: flex; flex-direction: column; gap: 10px;
+    transform: translateX(100%); transition: transform .2s ease;
+    box-shadow: -6px 0 20px rgba(0,0,0,.08);
+  }
+  .nav-links.open { transform: translateX(0); }
+
+  /* Mostrar overlay cuando el menú está abierto */
+  .nav-links.open ~ .nav-overlay { display: block; }
+
+  /* Botones dentro del panel */
+  .nav-btn{
+    width: 100%;
+    text-align: left;
+    padding: 12px 14px;
+    border-radius: 12px;
+  }
+}
+
 /* ------------------------------------------------
    3) WELCOME (hero + fichas + gif)
 --------------------------------------------------*/
-.titulo_principal { color: #861ac0; }
+.titulo_principal { color: #e44506; }
 
 .contenedor-titulo {
   display: flex; align-items: center; justify-content: center;
@@ -108,7 +174,7 @@ main {
 .texto-ficha h2 { color: var(--color-primary); font-size: 2rem; margin-bottom: 20px; }
 .texto-ficha p { color: #333; font-size: 1.1rem; line-height: 1.6; }
 
-.ficha2 { display: flex; justify-content: center; margin-top: 100px; }
+.ficha2 { display: flex; justify-content: center; margin-top: 500px; }
 .ficha2 img { width: 100%; max-width: 1000px; height: auto; border-radius: 12px; }
 
 .texto-ficha2 { text-align: center; max-width: 900px; margin: 80px auto; padding: 0 20px; }
@@ -125,8 +191,15 @@ main {
 --------------------------------------------------*/
 .func-hero {
   background: var(--color-bg-hero);
-  text-align: center; padding: 80px 20px 60px;
-  border-radius: 12px; margin-top: 20px;
+  width: 100vw;              /* ocupa todo el ancho del viewport */
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;        /* rompe el centrado del main */
+  margin-right: -50vw;
+  text-align: center;
+  padding: 80px 20px 0;      /* padding superior, sin duplicar */
+  border-radius: 0;
 }
 .func-hero h1 {
   color: #6f1ab6;
@@ -136,9 +209,18 @@ main {
 .func-hero p { color: #555; max-width: 780px; margin: 0 auto; line-height: 1.6; }
 
 .func-grid {
+  background: var(--color-bg-hero);
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 26px; padding: 36px 0 80px;
+  grid-template-columns: repeat(3, 1fr);  /* tres columnas fijas */
+  gap: 30px;
+  padding: 36px 20% 80px;     /* margen interno cómodo */
+  justify-items: center;
 }
 .func-card {
   background: #fff; border-radius: 14px; padding: 28px; text-align: center;
@@ -147,94 +229,299 @@ main {
 .func-card .icon { font-size: 34px; margin-bottom: 12px; }
 .func-card h3 { color: #2b2b2b; font-size: 20px; margin: 8px 0 10px; font-weight: 800; }
 .func-card p { color: #555; line-height: 1.6; margin: 0; }
+/* Responsive */
+@media (max-width: 1024px) {
+  .func-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
 
+@media (max-width: 700px) {
+  .func-grid {
+    grid-template-columns: 1fr;
+  }
+}
 /* ------------------------------------------------
    5) ¿POR QUÉ? (porque.jsx)
 --------------------------------------------------*/
-.porque .section { padding: 2rem 1rem; }
-.porque .container { max-width: 1100px; margin: 0 auto; }
+.porque .section { 
+  padding: 2rem 1rem 15rem; 
+}
 
-.section-title { text-align: center; font-size: clamp(1.5rem, 2.5vw, 2.2rem); margin: 0 0 0.5rem; }
-.section-subtitle { text-align: center; opacity: 0.9; max-width: 800px; margin: 0 auto 1.5rem; }
+.porque .container { 
+  max-width: 1100px; 
+  margin: 0 auto; 
+}
 
+/* --- Título y subtítulo --- */
+.section-title { 
+  text-align: center; 
+  font-size: clamp(1.5rem, 2.5vw, 2.2rem); 
+  margin: 0 7 1rem; 
+  color: #830cc4; 
+  font-weight: 800;
+}
+
+.section-subtitle { 
+  text-align: center; 
+  opacity: 0.60; 
+  max-width: 700px; 
+  margin: 0 auto 1.5rem; 
+  color: #000000; 
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+/* --- Grilla de tarjetas --- */
 .features-grid {
-  display: grid; gap: 1rem;
+  display: grid; 
+  gap: 2rem;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
-.feature-card {
-  background: #fff; border: 1px solid rgba(0,0,0,0.06);
-  border-radius: 16px; padding: 1rem; box-shadow: 0 6px 20px rgba(0,0,0,0.06);
-}
-.feature-card .icon { font-size: 1.6rem; line-height: 1; margin-bottom: 0.5rem; }
 
-.section-light { background: #faf7ff; }
-.split-section {
-  display: grid; gap: 1.25rem; grid-template-columns: 1fr; align-items: center;
+.feature-card {
+  background: #fff; 
+  border: 2px solid rgba(0,0,0,0.06);
+  border-radius: 16px; 
+  padding: 1rem; 
+  box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+  text-align: center;
 }
+
+.feature-card .icon { 
+  font-size: 3rem; 
+  line-height: 2; 
+  margin-bottom: 2rem;
+}
+
+/* --- Fondo lila extendido --- */
+.section-light {
+  background: var(--color-bg-hero); 
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  padding: 80px 0;
+}
+
+/* --- División texto + imagen (último bloque del PORQUÉ) --- */
+.split-section {
+  display: grid; 
+  gap: 1.25rem; 
+  grid-template-columns: 1fr; 
+  align-items: center;
+}
+
 @media (min-width: 900px) {
   .split-section { grid-template-columns: 1.1fr 0.9fr; }
 }
-.split-section-text .section-badge {
-  display: inline-block; font-size: 0.75rem; padding: 0.25rem 0.6rem;
-  border-radius: 999px; background: var(--color-bg-light); color: #3a0a6a; margin-bottom: 0.6rem;
-}
-.split-section-text h2 { margin: 0.25rem 0 0.75rem; }
-.split-section-image img {
-  width: 100%; height: auto; border-radius: 16px; box-shadow: 0 8px 28px rgba(0,0,0,0.08);
+
+/* --- Lado izquierdo: texto --- */
+.split-section-text {
+  text-align: left;
+  color: #2b2b2b;
+  max-width: 600px;
 }
 
-/* Botón genérico */
-.btn { cursor: pointer; border-radius: 12px; padding: 0.65rem 1rem; border: 1px solid transparent; font-weight: 600; }
-.btn--primary { background: var(--color-primary-strong); color: #fff; }
+.split-section-text .section-badge {
+  display: inline-block;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: #e5b3fe; /* morado claro */
+  color: #3a0a6a; /* morado oscuro */
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.split-section-text h2 {
+  color: #830cc4;
+  font-weight: 800;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.split-section-text p {
+  color: #2b2b2b;
+  line-height: 1.6;
+  font-size: 1rem;
+  margin-bottom: 2rem;
+}
+
+.split-section-text .btn--primary {
+  background: #830cc4;
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  padding: 0.9rem 1.5rem;
+  border-radius: 999px;
+  transition: all 0.3s ease;
+}
+
+.split-section-text .btn--primary:hover {
+  background: #6b21a8;
+  transform: translateY(-2px);
+}
+
+/* --- Lado derecho: imagen --- */
+.split-section-image img {
+  width: 100%;
+  height: auto;
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.08);
+}
+
 
 /* ------------------------------------------------
-   6) BLOG (blog.jsx) — con correcciones de clases
+   BLOG DE DR. FACHERO — versión final
+   Fondo lila ajustado (#f3d9ff)
 --------------------------------------------------*/
-.blog .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
 
+/* === Contenedor general del blog === */
+.blog {
+  background: #fff;
+  position: relative;
+  z-index: 0;
+}
+
+/* --- Contenedor interno --- */
+.blog .container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* === Encabezado del blog === */
 .blog-header {
-  background: var(--color-bg-light);
-  padding: 72px 0 64px; text-align: center;
+  background: #f3d9ff; /* nuevo color lila */
+  text-align: center;
+  padding: 72px 0 64px;
+
+  /* Extiende el color lila de borde a borde */
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
 }
+
 .blog-header h1 {
-  font-size: clamp(34px, 5vw, 56px); color: var(--color-primary);
-  font-weight: 800; letter-spacing: -0.02em; margin-bottom: 12px;
+  font-size: clamp(36px, 5vw, 56px);
+  color: var(--color-primary);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
 }
-.blog-header p { font-size: clamp(16px, 1.4vw, 18px); color: var(--color-text-soft); max-width: 760px; margin: 0 auto; line-height: 1.7; }
 
-/* feed: corregimos typo .blog-fedd -> .blog-feed (usa esta clase en JSX o deja ambas) */
-.blog-feed, .blog-fedd { padding: 56px 0 80px; }
-
-.full-blog-post { max-width: 860px; margin: 0 auto 84px auto; text-align: left; }
-
-.badge, .category, .badge--lilac {
-  display: inline-flex; align-items: center; justify-content: center;
-  padding: 6px 14px; font-size: 14px; font-weight: 700;
-  color: var(--color-primary); background-color: #f4e6ff;
-  border-radius: 999px; line-height: 1; letter-spacing: 0.01em;
-  border: none; box-shadow: 0 4px 14px rgba(166, 58, 230, 0.08);
+.blog-header p {
+  font-size: clamp(16px, 1.4vw, 18px);
+  color: var(--color-text-soft);
+  max-width: 760px;
+  margin: 0 auto;
+  line-height: 1.7;
 }
-.badge--lg { font-size: 15px; padding: 8px 18px; }
-.badge--sm { font-size: 12px; padding: 4px 10px; }
 
+/* === Feed de artículos === */
+.blog-fedd,
+.blog-feed {
+  background: #fff;
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  padding: 56px 0 80px;
+  z-index: 1;
+}
+
+/* === Artículo individual === */
+.full-blog-post {
+  background: #fff;
+  max-width: 860px;
+  margin: 0 auto 84px auto;
+  text-align: left;
+  padding: 0 10px;
+}
+
+/* === Etiquetas (Novedades / Gestión Clínica) === */
+.full-blog-post .badge,
+.full-blog-post .category,
+.badge--lilac {
+  display: inline-block;
+  background: #f3d9ff; /* color actualizado */
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 6px 15px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 14px rgba(166, 58, 230, 0.08);
+}
+
+/* === Título del artículo === */
 .full-blog-post h2 {
-  font-size: clamp(28px, 3.2vw, 44px); line-height: 1.18;
-  color: var(--color-text-dark); margin: 12px 0 18px; font-weight: 800;
+  font-size: clamp(28px, 3.2vw, 44px);
+  line-height: 1.18;
+  color: var(--color-text-dark);
+  margin: 12px 0 18px;
+  font-weight: 800;
 }
-.full-blog-post img.featured-image { width: 100%; border-radius: 20px; margin: 12px 0 26px; box-shadow: var(--shadow-soft); }
 
-/* post-content: corregimos classname -> className en JSX; mantenemos selector por si acaso */
-.full-blog-post .post-content, .full-blog-post [classname="post-content"] {
-  font-size: 18px; color: var(--color-text-dark); line-height: 1.95; letter-spacing: 0.003em;
+/* === Imagen destacada === */
+.full-blog-post img.featured-image {
+  width: 100%;
+  border-radius: 20px;
+  margin: 12px 0 26px;
+  box-shadow: var(--shadow-soft);
 }
-.full-blog-post .post-content p { margin-bottom: 22px; }
-.full-blog-post .post-content ul { list-style: disc; padding-left: 26px; margin-bottom: 22px; }
 
-/* Separador visual */
+/* === Contenido del post === */
+.full-blog-post .post-content {
+  font-size: 18px;
+  color: var(--color-text-dark);
+  line-height: 1.95;
+  letter-spacing: 0.003em;
+}
+
+.full-blog-post .post-content p {
+  margin-bottom: 22px;
+}
+
+.full-blog-post .post-content ul {
+  list-style: disc;
+  padding-left: 26px;
+  margin-bottom: 22px;
+}
+
+/* === Separador visual opcional === */
 .blog-divider {
-  height: 18px; margin: 28px 0 8px;
-  background: linear-gradient(180deg, rgba(166, 58, 230, 0.18) 0%, rgba(166, 58, 230, 0.10) 60%, rgba(166, 58, 230, 0.00) 100%);
+  height: 18px;
+  margin: 28px 0 8px;
+  background: linear-gradient(
+    180deg,
+    rgba(166, 58, 230, 0.18) 0%,
+    rgba(166, 58, 230, 0.1) 60%,
+    rgba(166, 58, 230, 0) 100%
+  );
   border-radius: var(--radius-xl);
+}
+
+/* === Responsive === */
+@media (max-width: 768px) {
+  .blog-header {
+    padding: 56px 0 48px;
+  }
+  .blog-feed {
+    padding: 40px 0 64px;
+  }
+  .full-blog-post {
+    margin-bottom: 64px;
+  }
 }
 
 /* ------------------------------------------------
@@ -338,48 +625,180 @@ main {
 }
 .plan-cta .cta-btn:hover { filter: brightness(1.05); }
 
-/* ------------------------------------------------
-   8) CONTACTO (contacto.jsx)
---------------------------------------------------*/
-.contacto-page { max-width: 1100px; margin: 0 auto; padding: 36px 20px 80px; }
-.contact-grid {
-  display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; align-items: start;
-}
-.contact-info { text-align: left; }
-.contact-info h1 {
-  color: #4a0376; font-size: clamp(28px, 4vw, 44px); line-height: 1.15; margin: 0 0 8px; font-weight: 900;
-}
-.contact-lead { color: #4b4557; line-height: 1.7; margin: 0 0 16px; }
-.contact-subtitle { margin: 16px 0 8px; color: #31154a; }
-.contact-bullets { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 10px; }
-.contact-bullets li { display: flex; gap: 10px; align-items: center; color: #3e3845; }
-.bullet-icon { font-size: 20px; line-height: 1; }
+/* ================================
+   CONTACTO — estilos para tu JSX
+   ================================ */
 
-/* Tarjeta formulario */
-.contact-form-card {
-  background: #fff; border: 1px solid rgba(0,0,0,.06); border-radius: 16px;
-  padding: 22px; box-shadow: 0 10px 28px rgba(0,0,0,.06); text-align: left;
+/* Fondo blanco full-bleed para tapar cualquier lila de abajo */
+.contacto-page{
+  background:#fff;
+  position:relative; z-index:1;
+  padding:72px 0 104px;
+  width:100vw; left:50%; right:50%;
+  margin-left:-50vw; margin-right:-50vw;
 }
-.contact-form-card h2 { margin: 0 0 12px; color: #2b2433; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.field { display: flex; flex-direction: column; gap: 6px; }
-.field label { font-size: 0.9rem; color: #4b4557; }
-.field input, .field textarea, .field select {
-  border: 1px solid #e5d9f7; border-radius: 10px; padding: 10px 12px; font-size: 0.95rem; outline: none;
-}
-.field textarea { resize: vertical; }
-.input-error { border-color: #e44; background: #fff7f7; }
-.input-hint { color: #b00; font-size: 0.8rem; }
 
-.phone-group { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 8px; }
-
-.contact-form-card button[type="submit"] {
-  margin-top: 8px; background: var(--color-primary-strong); color: #fff; font-weight: 800;
-  border: none; border-radius: 10px; padding: 12px 16px; cursor: pointer;
-  box-shadow: 0 10px 26px rgba(166,58,230,.22);
+/* Grid principal */
+.contact-grid{
+  max-width:1100px;
+  margin:0 auto;
+  padding:0 24px;
+  display:grid;
+  grid-template-columns:1.1fr 0.9fr; /* izq texto / der form */
+  gap:56px;
+  align-items:start;
 }
-.contact-form-card button[disabled] { opacity: .7; cursor: default; }
-.form-ok { color: #1f7a39; font-weight: 700; margin-top: 10px; }
+
+/* Columna izquierda */
+.contact-info h1{
+  color:var(--color-primary);
+  font-weight:800;
+  letter-spacing:-.02em;
+  font-size:clamp(34px,4.2vw,56px);
+  line-height:1.1;
+  margin:0 0 18px;
+}
+.contact-lead{
+  color:var(--color-text-soft);
+  font-size:clamp(16px,1.5vw,18px);
+  line-height:1.7;
+  margin-bottom:28px;
+}
+.contact-subtitle{
+  font-weight:800;
+  font-size:clamp(20px,2.2vw,26px);
+  margin:28px 0 14px;
+}
+
+/* Bullets (2 columnas) */
+.contact-bullets{
+  list-style:none; margin:0; padding:0;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px 24px;
+}
+.contact-bullets li{
+  display:flex; align-items:center; gap:14px;
+  font-size:18px;
+}
+.bullet-icon{
+  flex:0 0 56px; height:56px;
+  display:grid; place-items:center;
+  border-radius:14px;
+  background:#f3d9ff;   /* lilita suave pedida */
+}
+
+/* Tarjeta del formulario */
+.contact-form-card{
+  background:#fff;
+  border:1px solid #ead8ff;
+  border-radius:20px;
+  box-shadow:0 18px 60px rgba(0,0,0,.06);
+  padding:28px;
+}
+.contact-form-card h2{
+  font-size:clamp(22px,2.4vw,32px);
+  margin:0 0 18px;
+  font-weight:800;
+  color:var(--color-text-dark);
+}
+
+/* Filas y campos */
+.form-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px 16px;
+  margin-bottom:12px;
+}
+.field{ display:flex; flex-direction:column; gap:6px; }
+.field label{ font-weight:700; font-size:14px; color:var(--color-text-dark); }
+
+/* Inputs */
+.contact-form-card input,
+.contact-form-card select,
+.contact-form-card textarea{
+  width:100%;
+  border:1px solid #ead8ff;
+  border-radius:12px;
+  padding:14px 16px;
+  font-size:16px;
+  background:#fff;
+  outline:none;
+  transition:border .15s, box-shadow .15s;
+}
+.contact-form-card textarea{ min-height:140px; resize:vertical; }
+
+.contact-form-card input:focus,
+.contact-form-card select:focus,
+.contact-form-card textarea:focus{
+  border-color:#cda6ff;
+  box-shadow:0 0 0 4px rgba(205,166,255,.25);
+}
+
+/* Teléfono: select + input */
+.phone-group{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:10px;
+}
+.phone-group select{ min-width:140px; }
+
+/* Errores */
+.input-error{ border-color:#e35c5c !important; }
+.input-hint{ color:#e35c5c; font-size:12px; }
+
+/* Botón */
+.contact-form-card button[type="submit"]{
+  margin-top:10px;
+  display:inline-flex; align-items:center; justify-content:center;
+  width:100%;
+  padding:14px 18px;
+  border-radius:14px;
+  background:var(--color-primary-strong);
+  color:#fff; font-weight:800; border:none; cursor:pointer;
+  transition:transform .06s ease, filter .15s ease;
+}
+.contact-form-card button[type="submit"]:hover{ filter:brightness(.96); }
+.contact-form-card button[type="submit"]:active{ transform:translateY(1px); }
+
+/* Mensaje OK */
+.form-ok{ margin-top:10px; color:#16a34a; font-weight:700; }
+
+/* Accesibilidad: screen-reader only */
+.sr-only{
+  position:absolute !important; width:1px; height:1px;
+  padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0);
+  white-space:nowrap; border:0;
+}
+
+/* Modal de errores */
+.modal-backdrop{
+  position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,.45);
+  display:grid; place-items:center;
+}
+.modal-card{
+  background:#fff; border-radius:16px;
+  width:min(560px,92vw); padding:22px 20px;
+  box-shadow:0 16px 60px rgba(0,0,0,.25);
+}
+.modal-card h3{
+  margin:0 0 6px; font-size:20px; font-weight:800; color:var(--color-text-dark);
+}
+.modal-subtitle{ margin:0 0 10px; color:var(--color-text-soft); }
+.modal-list{ margin:0 0 14px 18px; }
+.modal-actions{ display:flex; justify-content:flex-end; gap:10px; }
+.btn.btn--primary{
+  background:var(--color-primary-strong); color:#fff;
+  border:none; border-radius:10px; padding:10px 14px; font-weight:700; cursor:pointer;
+}
+
+/* Responsive */
+@media (max-width: 960px){
+  .contact-grid{ grid-template-columns:1fr; gap:28px; }
+  .form-row{ grid-template-columns:1fr; }
+  .phone-group{ grid-template-columns:1fr; }
+}
 
 /* ------------------------------------------------
    8) FOOTER (footer.jsx)
@@ -641,10 +1060,16 @@ main {
 }
 /* ===== WHY SPLIT (texto der + imagen izq) ===== */
 .why-split {
-  background: var(--color-bg-light);   /* lila suave */
-  padding: 80px 10%;
+  background: var(--color-bg-light);
+  width: 100vw;              /* ocupa todo el ancho de la ventana */
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;        /* elimina márgenes automáticos */
+  margin-right: -50vw;
+  padding: 80px 0;           /* sin padding lateral */
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr; /* imagen | texto */
+  grid-template-columns: 1.05fr 0.95fr;
   gap: 48px;
   align-items: center;
 }
@@ -654,10 +1079,11 @@ main {
   margin: 0;
   background: #fff;
   border-radius: 18px;
-  padding: 20px;
+  padding: 10px;
   box-shadow: 0 16px 40px rgba(0,0,0,.15);
   display: flex;
   justify-content: center;
+  transform: translateX(30px);
 }
 .why-mock img {
   width: 100%;
@@ -672,7 +1098,7 @@ main {
   letter-spacing: .08em;
   font-weight: 700;
   color: #9b4de0;
-  margin: 0 0 8px;
+  margin: 0 0 7px;
   font-size: 14px;
 }
 .why-title {
