@@ -56,10 +56,16 @@ export default function Contacto() {
 
           <div className="form-row">
             <div className="field">
-              <label>Nombre*</label>
+              <label htmlFor="nombre">Nombre*</label>
               <input
+                id="nombre"
+                type="text"
+                autoComplete="given-name"
+                aria-required="true"
+                aria-invalid={!!errors.nombre}
                 {...register("nombre", { required: "Obligatorio" })}
                 className={errors.nombre ? "input-error" : ""}
+                disabled={isSubmitting}
               />
               {errors.nombre && (
                 <small className="input-hint">{errors.nombre.message}</small>
@@ -67,10 +73,16 @@ export default function Contacto() {
             </div>
 
             <div className="field">
-              <label>Apellido*</label>
+              <label htmlFor="apellido">Apellido*</label>
               <input
+                id="apellido"
+                type="text"
+                autoComplete="family-name"
+                aria-required="true"
+                aria-invalid={!!errors.apellido}
                 {...register("apellido", { required: "Obligatorio" })}
                 className={errors.apellido ? "input-error" : ""}
+                disabled={isSubmitting}
               />
               {errors.apellido && (
                 <small className="input-hint">{errors.apellido.message}</small>
@@ -80,10 +92,16 @@ export default function Contacto() {
 
           <div className="form-row">
             <div className="field">
-              <label>Nombre de clínica*</label>
+              <label htmlFor="clinica">Nombre de clínica*</label>
               <input
+                id="clinica"
+                type="text"
+                autoComplete="organization"
+                aria-required="true"
+                aria-invalid={!!errors.clinica}
                 {...register("clinica", { required: "Obligatorio" })}
                 className={errors.clinica ? "input-error" : ""}
+                disabled={isSubmitting}
               />
               {errors.clinica && (
                 <small className="input-hint">{errors.clinica.message}</small>
@@ -91,13 +109,19 @@ export default function Contacto() {
             </div>
 
             <div className="field">
-              <label>Nº de profesionales*</label>
+              <label htmlFor="profesionales">Nº de profesionales*</label>
               <input
+                id="profesionales"
+                type="number"
+                inputMode="numeric"
+                aria-required="true"
+                aria-invalid={!!errors.profesionales}
                 {...register("profesionales", {
                   required: "Obligatorio",
                   pattern: { value: /^[0-9]+$/, message: "Solo números" },
                 })}
                 className={errors.profesionales ? "input-error" : ""}
+                disabled={isSubmitting}
               />
               {errors.profesionales && (
                 <small className="input-hint">
@@ -109,8 +133,13 @@ export default function Contacto() {
 
           <div className="form-row">
             <div className="field">
-              <label>Correo laboral*</label>
+              <label htmlFor="email">Correo laboral*</label>
               <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                aria-required="true"
+                aria-invalid={!!errors.email}
                 {...register("email", {
                   required: "Obligatorio",
                   pattern: {
@@ -119,6 +148,7 @@ export default function Contacto() {
                   },
                 })}
                 className={errors.email ? "input-error" : ""}
+                disabled={isSubmitting}
               />
               {errors.email && (
                 <small className="input-hint">{errors.email.message}</small>
@@ -126,22 +156,31 @@ export default function Contacto() {
             </div>
 
             <div className="field">
-              <label>Número de teléfono*</label>
+              <label htmlFor="telefono">Número de teléfono*</label>
 
               <div className="phone-group">
-                <select defaultValue="CL" {...register("pais")}>
+                {/* Etiqueta accesible para el selector de país */}
+                <label htmlFor="pais" className="sr-only">País</label>
+                <select id="pais" defaultValue="CL" {...register("pais")} disabled={isSubmitting}>
                   <option value="CL">Chile (+56)</option>
                   <option value="AR">Argentina (+54)</option>
                   <option value="PE">Perú (+51)</option>
                 </select>
 
                 <input
+                  id="telefono"
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="Ej: 912345678"
+                  autoComplete="tel-national"
+                  aria-required="true"
+                  aria-invalid={!!errors.telefono}
                   {...register("telefono", {
                     required: "El número de teléfono es obligatorio.",
                     pattern: { value: /^[0-9]{8,15}$/, message: "Formato inválido" },
                   })}
                   className={errors.telefono ? "input-error" : ""}
-                  placeholder="Ej: 912345678"
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -152,8 +191,13 @@ export default function Contacto() {
           </div>
 
           <div className="field">
-            <label>¿Tienes preguntas?</label>
-            <textarea rows={4} {...register("mensaje")} />
+            <label htmlFor="mensaje">¿Tienes preguntas?</label>
+            <textarea
+              id="mensaje"
+              rows={4}
+              {...register("mensaje")}
+              disabled={isSubmitting}
+            />
           </div>
 
           <button type="submit" disabled={isSubmitting}>
@@ -164,6 +208,7 @@ export default function Contacto() {
             <p className="form-ok">¡Gracias! Te contactaremos pronto.</p>
           )}
         </form>
+
       </div>
     </section>
   );
