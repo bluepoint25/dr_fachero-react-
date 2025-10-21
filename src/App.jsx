@@ -43,10 +43,10 @@ function App() {
 
       {/* Contenido principal (el CSS ya deja margen-top por la barra) */}
       <main>
-        {pagina === "inicio" && <Welcome />}
+        {pagina === "inicio" && <Welcome setPagina={setPagina} />}
         {pagina === "funcionalidades" && <Funcionalidades />}
         {pagina === "porque" && <Porque setPagina={setPagina} />}
-        {pagina === "blog" && <Blog />}7
+        {pagina === "blog" && <Blog />}
         {pagina === "planes" && <PLanes />}
         {pagina === "contacto" && <Contacto />}
       </main>

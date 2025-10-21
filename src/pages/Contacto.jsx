@@ -1,6 +1,10 @@
 import { useForm } from "react-hook-form";
+import { useState, useMemo } from "react";
 
 export default function Contacto() {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalLines, setModalLines] = useState([]);
+
   const {
     register,
     handleSubmit,
@@ -8,10 +12,52 @@ export default function Contacto() {
     formState: { errors, isSubmitting, isSubmitSuccessful },
   } = useForm();
 
-  const onSubmit = async () => {
+  const onValid = async () => {
+    // Simula espera (tu comportamiento actual)
     await new Promise((r) => setTimeout(r, 800));
     reset();
   };
+
+  const onInvalid = (errs) => {
+    // Orden amistoso para mostrar mensajes
+    const order = [
+      "nombre",
+      "apellido",
+      "clinica",
+      "profesionales",
+      "email",
+      "telefono",
+      "mensaje",
+    ];
+    const labels = {
+      nombre: "Nombre",
+      apellido: "Apellido",
+      clinica: "Nombre de clínica",
+      profesionales: "Nº de profesionales",
+      email: "Correo laboral",
+      telefono: "Número de teléfono",
+      mensaje: "Mensaje",
+    };
+
+    const lines = order
+      .filter((k) => errs[k])
+      .map((k) => `• ${labels[k]}: ${errs[k]?.message ?? "Dato inválido"}`);
+
+    // Por si aparece algún error no listado en 'order'
+    Object.keys(errs).forEach((k) => {
+      if (!order.includes(k)) {
+        lines.push(`• ${k}: ${errs[k]?.message ?? "Dato inválido"}`);
+      }
+    });
+
+    setModalLines(lines.length ? lines : ["• Verifica los datos ingresados."]);
+    setModalOpen(true);
+  };
+
+  const modalTitle = useMemo(() => {
+    const count = modalLines.length;
+    return count > 1 ? "Verifique los datos:" : "Verifique el dato:";
+  }, [modalLines]);
 
   return (
     <section className="contacto-page">
@@ -51,7 +97,10 @@ export default function Contacto() {
         </div>
 
         {/* DERECHA: tarjeta con formulario */}
-        <form className="contact-form-card" onSubmit={handleSubmit(onSubmit)}>
+        <form
+          className="contact-form-card"
+          onSubmit={handleSubmit(onValid, onInvalid)}
+        >
           <h2>Obtén más información</h2>
 
           <div className="form-row">
@@ -63,7 +112,7 @@ export default function Contacto() {
                 autoComplete="given-name"
                 aria-required="true"
                 aria-invalid={!!errors.nombre}
-                {...register("nombre", { required: "Obligatorio" })}
+                {...register("nombre", { required: "El Nombre es Obligatorio" })}
                 className={errors.nombre ? "input-error" : ""}
                 disabled={isSubmitting}
               />
@@ -80,7 +129,9 @@ export default function Contacto() {
                 autoComplete="family-name"
                 aria-required="true"
                 aria-invalid={!!errors.apellido}
-                {...register("apellido", { required: "Obligatorio" })}
+                {...register("apellido", {
+                  required: "El Apellido es Obligatorio",
+                })}
                 className={errors.apellido ? "input-error" : ""}
                 disabled={isSubmitting}
               />
@@ -99,7 +150,9 @@ export default function Contacto() {
                 autoComplete="organization"
                 aria-required="true"
                 aria-invalid={!!errors.clinica}
-                {...register("clinica", { required: "Obligatorio" })}
+                {...register("clinica", {
+                  required: "Nombre de clínica Obligatorio",
+                })}
                 className={errors.clinica ? "input-error" : ""}
                 disabled={isSubmitting}
               />
@@ -117,7 +170,7 @@ export default function Contacto() {
                 aria-required="true"
                 aria-invalid={!!errors.profesionales}
                 {...register("profesionales", {
-                  required: "Obligatorio",
+                  required: "Numeros Obligatorios",
                   pattern: { value: /^[0-9]+$/, message: "Solo números" },
                 })}
                 className={errors.profesionales ? "input-error" : ""}
@@ -141,7 +194,7 @@ export default function Contacto() {
                 aria-required="true"
                 aria-invalid={!!errors.email}
                 {...register("email", {
-                  required: "Obligatorio",
+                  required: "El Email es Obligatorio",
                   pattern: {
                     value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                     message: "Correo inválido",
@@ -160,8 +213,15 @@ export default function Contacto() {
 
               <div className="phone-group">
                 {/* Etiqueta accesible para el selector de país */}
-                <label htmlFor="pais" className="sr-only">País</label>
-                <select id="pais" defaultValue="CL" {...register("pais")} disabled={isSubmitting}>
+                <label htmlFor="pais" className="sr-only">
+                  País
+                </label>
+                <select
+                  id="pais"
+                  defaultValue="CL"
+                  {...register("pais")}
+                  disabled={isSubmitting}
+                >
                   <option value="CL">Chile (+56)</option>
                   <option value="AR">Argentina (+54)</option>
                   <option value="PE">Perú (+51)</option>
@@ -177,7 +237,10 @@ export default function Contacto() {
                   aria-invalid={!!errors.telefono}
                   {...register("telefono", {
                     required: "El número de teléfono es obligatorio.",
-                    pattern: { value: /^[0-9]{8,15}$/, message: "Formato inválido" },
+                    pattern: {
+                      value: /^[0-9]{8,15}$/,
+                      message: "Formato inválido",
+                    },
                   })}
                   className={errors.telefono ? "input-error" : ""}
                   disabled={isSubmitting}
@@ -208,8 +271,41 @@ export default function Contacto() {
             <p className="form-ok">¡Gracias! Te contactaremos pronto.</p>
           )}
         </form>
-
       </div>
+
+      {/* MODAL DE ERRORES */}
+      {modalOpen && (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+          onClick={() => setModalOpen(false)}
+        >
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+            role="document"
+          >
+            <h3 id="modal-title">Verifique los datos</h3>
+            <p className="modal-subtitle">{modalTitle}</p>
+            <ul className="modal-list">
+              {modalLines.map((line, idx) => (
+                <li key={idx}>{line}</li>
+              ))}
+            </ul>
+            <div className="modal-actions">
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="btn btn--primary"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
