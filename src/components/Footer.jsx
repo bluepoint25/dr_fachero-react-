@@ -3,6 +3,11 @@ import "../App.css";
 import logo from "../assets/logo_drfachero.png";
 
 export default function Footer({ pagina, setPagina }) {
+  const go = (p) => {
+    setPagina(p);
+    // Añadir la lógica de scroll para pasar el test
+    window.scrollTo({ top: 0, behavior: "instant" });
+  };
   return (
     <footer className="footer">
       <div className="container">
@@ -12,7 +17,7 @@ export default function Footer({ pagina, setPagina }) {
             <button
               type="button"
               className="logo linklike"
-              onClick={() => setPagina("inicio")}
+              onClick={() => go("inicio")}
               aria-label="Ir a Inicio"
             >
               <img src={logo} alt="Logo Dr. Fachero en negativo" />
