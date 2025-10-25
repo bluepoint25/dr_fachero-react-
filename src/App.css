@@ -1,6 +1,5 @@
 /* ================================================================
-   APP.CSS — Estilos generales del proyecto Dr. Fachero (corregido)
-   Basado en el modelo: https://jenniferalbornoz.github.io/Dr-Fachero/
+   APP.CSS — Estilos generales del proyecto Dr. Fachero 
    ================================================================ */
 
 /* ---------- Paleta raíz y tokens ----------- */
@@ -695,6 +694,9 @@ main {
   border-radius:20px;
   box-shadow:0 18px 60px rgba(0,0,0,.06);
   padding:28px;
+  max-width: 600px; 
+  width: 100%;
+  margin: 0 auto;
 }
 .contact-form-card h2{
   font-size:clamp(22px,2.4vw,32px);
@@ -738,10 +740,13 @@ main {
 /* Teléfono: select + input */
 .phone-group{
   display:grid;
-  grid-template-columns:auto 1fr;
+  grid-template-columns:80px  1fr;
   gap:10px;
 }
-.phone-group select{ min-width:140px; }
+.phone-group select {
+  width: 100%;
+  min-width: unset;
+}
 
 /* Errores */
 .input-error{ border-color:#e35c5c !important; }

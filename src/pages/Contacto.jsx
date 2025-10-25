@@ -222,9 +222,7 @@ export default function Contacto() {
                   {...register("pais")}
                   disabled={isSubmitting}
                 >
-                  <option value="CL">Chile (+56)</option>
-                  <option value="AR">Argentina (+54)</option>
-                  <option value="PE">Perú (+51)</option>
+                  <option value="CL">+56</option>
                 </select>
 
                 <input

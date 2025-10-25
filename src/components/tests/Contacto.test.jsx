@@ -24,7 +24,7 @@ it('limpia los campos después de enviar el formulario exitosamente', async () =
   // envía
   fireEvent.click(boton)
 
-  // ⚠️ Tu onSubmit espera ~800ms. Esperamos el mensaje de éxito.
+  //  onSubmit espera ~800ms. Esperamos el mensaje de éxito.
   await screen.findByText(/¡Gracias! Te contactaremos pronto\./i, {}, { timeout: 3000 })
 
   // luego verificamos que el reset ocurrió
