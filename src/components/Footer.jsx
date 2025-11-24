@@ -86,6 +86,17 @@ export default function Footer({ pagina, setPagina }) {
                   Contacto
                 </button>
               </li>
+              <li>
+                <button
+                  type="button"
+                  className={`linklike ${pagina === "login" ? "active" :""}`}
+                  onClick={()=> go("login")}
+                  aria-current={pagina === "login" ? "page" :undefined}
+                >
+                  Iniciar Sesion
+                  
+                </button>
+              </li>
               <li><span className="muted">Términos y Condiciones</span></li>
               <li><span className="muted">Política de Privacidad</span></li>
             </ul>

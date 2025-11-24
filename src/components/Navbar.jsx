@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import logodr from "../assets/logo_drfachero.png";
 
-function Navbar({ pagina, setPagina }) {
+function Navbar({ pagina, setPagina ,userPlan}) {
   const [open, setOpen] = useState(false);
 
   const go = (p) => {
@@ -16,7 +16,8 @@ function Navbar({ pagina, setPagina }) {
     else document.body.style.overflow = "";
     return () => (document.body.style.overflow = "");
   }, [open]);
-
+  const authPage = userPlan ? `dashboard_${userPlan}` : "login"; 
+  const authText = userPlan ? "Mi Dashboard" : "Iniciar Sesión";
   return (
     <header className="barra">
       {/* Logo + nombre (puede actuar como botón a inicio) */}
@@ -97,6 +98,21 @@ function Navbar({ pagina, setPagina }) {
           aria-current={pagina === "contacto" ? "page" : undefined}
         >
           Contacto
+        </button>
+
+        <button
+          type="=button"
+          className={`nav-btn btn-cta-primary ${pagina === authPage ? "active" : ""}`}
+          onClick={()=> go(authPage)}ç
+          aria-current={pagina === authPage ? "page" : undefined} 
+          style={{ 
+                      color: '#fff', 
+                      background: 'var(--color-primary-strong)',
+                      padding: '8px 14px',
+                      borderRadius: '12px'
+                    }}
+        >
+          {authText}
         </button>
       </nav>
 
