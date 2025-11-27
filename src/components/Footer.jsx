@@ -1,3 +1,4 @@
+// src/components/Footer.jsx
 import React from "react";
 import "../App.css";
 import logo from "../assets/logo_drfachero.png";
@@ -33,7 +34,7 @@ export default function Footer({ pagina, setPagina }) {
                 <button
                   type="button"
                   className={`linklike ${pagina === "funcionalidades" ? "active" : ""}`}
-                  onClick={() => setPagina("funcionalidades")}
+                  onClick={() => go("funcionalidades")} // Modificado: usa go()
                   aria-current={pagina === "funcionalidades" ? "page" : undefined}
                 >
                   Funcionalidades
@@ -43,7 +44,7 @@ export default function Footer({ pagina, setPagina }) {
                 <button
                   type="button"
                   className={`linklike ${pagina === "planes" ? "active" : ""}`}
-                  onClick={() => setPagina("planes")}
+                  onClick={() => go("planes")} // Modificado: usa go()
                   aria-current={pagina === "planes" ? "page" : undefined}
                 >
                   Planes
@@ -53,7 +54,7 @@ export default function Footer({ pagina, setPagina }) {
                 <button
                   type="button"
                   className={`linklike ${pagina === "porque" ? "active" : ""}`}
-                  onClick={() => setPagina("porque")}
+                  onClick={() => go("porque")} // Modificado: usa go()
                   aria-current={pagina === "porque" ? "page" : undefined}
                 >
                   ¿Por qué nosotros?
@@ -63,7 +64,7 @@ export default function Footer({ pagina, setPagina }) {
                 <button
                   type="button"
                   className={`linklike ${pagina === "blog" ? "active" : ""}`}
-                  onClick={() => setPagina("blog")}
+                  onClick={() => go("blog")} // Modificado: usa go()
                   aria-current={pagina === "blog" ? "page" : undefined}
                 >
                   Blog
@@ -80,7 +81,7 @@ export default function Footer({ pagina, setPagina }) {
                 <button
                   type="button"
                   className={`linklike ${pagina === "contacto" ? "active" : ""}`}
-                  onClick={() => setPagina("contacto")}
+                  onClick={() => go("contacto")} // Modificado: usa go()
                   aria-current={pagina === "contacto" ? "page" : undefined}
                 >
                   Contacto
