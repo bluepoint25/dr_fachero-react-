@@ -6,7 +6,69 @@ import logo from '../assets/logo_drfachero.png'; // Usado en el Modal de Impresi
 // URL base de la API para Recetas
 const API_RECIPES_URL = 'http://localhost:8080/api/recipes';
 
-// Estilos Reutilizados (Copias de DashboardPro.jsx)
+// --- FUNCIÓN DE UTILIDAD: MANEJO SEGURO DE ERRORES DE API ---
+// Lee el cuerpo de la respuesta. Intenta JSON, si falla, lee como texto.
+const getSafeErrorMessage = async (response) => {
+    try {
+        // 1. Intenta leer como JSON (para errores de validación de backend)
+        const errorBody = await response.json();
+        
+        // Intenta extraer el mensaje del error de Spring Boot o usar un mensaje genérico
+        if (errorBody.errors && errorBody.errors.length > 0) {
+            return errorBody.errors.map(err => `${err.field}: ${err.defaultMessage}`).join('; ');
+        }
+        return errorBody.message || errorBody.error || JSON.stringify(errorBody);
+
+    } catch (_e) { // Corregido: 'e' cambiado a '_e'
+        // 2. Si falla la lectura JSON, lee como texto (para errores no JSON)
+        try {
+            const errorText = await response.text();
+            return errorText || `Error HTTP ${response.status}. Respuesta vacía.`;
+        } catch (_e) { // Corregido: 'e' cambiado a '_e'
+            return `Error HTTP ${response.status}. Fallo al procesar la respuesta.`;
+        }
+    }
+};
+
+// --- FUNCIÓN UTILITARIA para EXPORTAR a CSV/EXCEL ---
+const convertToCsvAndDownload = (data, filename, headers, keys) => {
+    if (!data || data.length === 0) {
+        alert("No hay datos para exportar.");
+        return;
+    }
+
+    // Encabezado con BOM (Byte Order Mark) para forzar UTF-8 en Excel
+    let csv = '\uFEFF'; 
+    
+    // 1. Añadir encabezados
+    csv += headers.join(';') + '\n';
+
+    // 2. Añadir filas de datos
+    data.forEach(item => {
+        const row = keys.map(key => {
+            let value = item[key] !== null && item[key] !== undefined ? item[key].toString() : '';
+            // Escape de comillas y delimitadores
+            if (value.includes(';') || value.includes('\n') || value.includes('"')) {
+                value = `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+        }).join(';');
+        csv += row + '\n';
+    });
+
+    // 3. Crear Blob y descargar
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+// --- FIN FUNCIÓN UTILITARIA ---
+
+
+// Estilos Reutilizados (se mantienen)
 const topMenuStyle = {
     background: '#830cc4',
     color: '#fff',
@@ -44,7 +106,7 @@ const cardStyle = {
     textAlign: 'left',
 };
 
-// Datos del médico para la plantilla de receta
+// Datos del médico para la plantilla de receta (Ahora se usan en el Modal de Impresión)
 const medicData = {
     name: "DR. ARTURO CRUZ RIVADENEIRA",
     title: "Médico General",
@@ -97,6 +159,7 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
 
         } catch (err) {
             console.error("Error al cargar recetas:", err);
+            // El error de conexión es genérico, no necesita manejo de JSON/texto aquí
             setError(`Error al cargar recetas. Failed to fetch`); 
             setRecipes([]);
         } finally {
@@ -116,6 +179,17 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
         recipe.medicament.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // --- FUNCIÓN: EXPORTAR RECETAS A EXCEL ---
+    const exportRecipesToExcel = () => {
+        const headers = ["ID", "Paciente", "Fecha", "Diagnóstico", "Medicamento", "Cantidad", "Duración", "Instrucciones"];
+        const keys = ["id", "patientName", "date", "diagnosis", "medicament", "quantity", "duration", "prescriptionDetail"];
+        const filename = `recetas_${new Date().toISOString().substring(0, 10)}.csv`;
+        
+        convertToCsvAndDownload(filteredRecipes, filename, headers, keys);
+    };
+    // --- FIN FUNCIÓN EXPORTAR RECETAS ---
+
+
     // Abre modal de nueva receta
     const openNewRecipeModal = () => {
         reset({ date: new Date().toISOString().substring(0, 10) }); 
@@ -132,8 +206,9 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
             });
 
             if (!response.ok) {
-                 const errorBody = await response.json();
-                throw new Error(`Fallo al crear la receta en la API: ${errorBody.message || response.statusText}`);
+                // USANDO EL MANEJO DE ERRORES SEGURO
+                const errorMessage = await getSafeErrorMessage(response);
+                throw new Error(errorMessage);
             }
             
             setIsNewRecipeModalOpen(false);
@@ -146,7 +221,7 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
             
         } catch (err) {
             console.error("Error al crear receta:", err);
-            setError("Fallo al crear la receta. Revisa la consola y el backend.");
+            setError(`Fallo al crear la receta: ${err.message}`);
         }
     };
     
@@ -176,7 +251,9 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                 });
 
                 if (!response.ok) {
-                    throw new Error('Fallo al eliminar la receta en la API.');
+                    // USANDO EL MANEJO DE ERRORES SEGURO
+                    const errorMessage = await getSafeErrorMessage(response);
+                    throw new Error(errorMessage);
                 }
                 
                 setRecipeToDelete(null);
@@ -185,12 +262,12 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                 
             } catch (err) {
                 console.error("Error al eliminar receta:", err);
-                alert("Fallo al eliminar la receta. Revisa la consola.");
+                alert(`Fallo al eliminar la receta: ${err.message}`);
             }
         }
     };
     
-    // Componente auxiliar para el Modal de Impresión 
+    // Componente auxiliar para el Modal de Impresión (Para asegurar uso de logo, medicData y recipeToPrint)
     const RecipePrintContent = () => (
         <div id="print-recipe-area" style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
             <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '20px' }}>
@@ -245,7 +322,7 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                       <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('recetas_medicas')}>Recetas médicas</button>
                     </li>
                 </ul>
-                {/* Botón Cerrar Sesión (Usa handleLogout de App.jsx) */}
+                {/* Botón Cerrar Sesión */}
                 <button 
                     onClick={handleLogout}
                     style={{ all: 'unset', background: 'rgba(255, 255, 255, 0.2)', border: 'none', color: '#fff', 
@@ -279,7 +356,21 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                             style={{ padding: '10px', width: '40%', borderRadius: '8px', border: '1px solid #ccc' }}
                         />
                         
-                        <div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            {/* NUEVO BOTÓN: EXPORTAR A EXCEL */}
+                            <button 
+                                onClick={exportRecipesToExcel}
+                                disabled={isLoading || filteredRecipes.length === 0}
+                                style={{ 
+                                    background: '#00b050', color: '#fff', padding: '10px 15px', border: 'none', 
+                                    borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold',
+                                    opacity: (isLoading || filteredRecipes.length === 0) ? 0.6 : 1 
+                                }}
+                                title="Exportar recetas visibles a CSV/Excel"
+                            >
+                                🗂️ Exportar Excel
+                            </button>
+                            {/* BOTÓN: NUEVA RECETA */}
                             <button 
                                 onClick={openNewRecipeModal} 
                                 style={{ 

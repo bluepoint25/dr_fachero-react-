@@ -5,6 +5,29 @@ import { useForm } from 'react-hook-form';
 // URL base de la API para Citas
 const API_APPOINTMENTS_URL = 'http://localhost:8080/api/appointments'; 
 
+// --- FUNCIÓN DE UTILIDAD: MANEJO SEGURO DE ERRORES DE API ---
+// Lee el cuerpo de la respuesta. Intenta JSON, si falla, lee como texto.
+const getSafeErrorMessage = async (response) => {
+    try {
+        const errorBody = await response.json();
+        
+        // Intenta extraer el mensaje del error de Spring Boot
+        if (errorBody.errors && errorBody.errors.length > 0) {
+            return errorBody.errors.map(err => `${err.field}: ${err.defaultMessage}`).join('; ');
+        }
+        return errorBody.message || errorBody.error || JSON.stringify(errorBody);
+
+    } catch (_e) { // Uso de _e para evitar el warning de ESLint
+        // Si falla la lectura JSON, lee como texto
+        try {
+            const errorText = await response.text();
+            return errorText || `Error HTTP ${response.status}. Respuesta vacía.`;
+        } catch (_e) { // Uso de _e para evitar el warning de ESLint
+            return `Error HTTP ${response.status}. Fallo al procesar la respuesta.`;
+        }
+    }
+};
+
 // Estilos Reutilizados (Se mantienen)
 const topMenuStyle = {
     background: '#830cc4',
@@ -129,7 +152,8 @@ export default function AgendaMedica({ goBack, setPagina }) {
             });
 
             if (!response.ok) {
-                throw new Error('Fallo al actualizar el estado en la API.');
+                const errorMessage = await getSafeErrorMessage(response);
+                throw new Error(errorMessage);
             }
 
             setAppointments(appointments.map(app => 
@@ -138,7 +162,7 @@ export default function AgendaMedica({ goBack, setPagina }) {
 
         } catch (err) {
             console.error("Error al cambiar estado:", err);
-            alert("Fallo al actualizar el estado de la cita. Revisa la consola.");
+            alert(`Fallo al actualizar el estado de la cita: ${err.message}`);
         }
     };
     
@@ -152,20 +176,27 @@ export default function AgendaMedica({ goBack, setPagina }) {
     // Función para crear nueva cita (POST a la API)
     const onSubmitNewAppointment = async (data) => {
         try {
+            // CORREGIDO: Aseguramos que se envía 'procedure' con el valor de 'procedure' y eliminamos 'reason'
+            const payload = {
+                patient: data.patient.toUpperCase(),
+                rut: data.rut,
+                time: data.time,
+                date: data.date,
+                procedure: data.procedure, // Enviamos 'procedure' que es el campo del formulario
+                medic: data.medic,
+                location: data.location || 'Consultorio 1', 
+                status: 'Confirmada',
+            };
+
             const response = await fetch(API_APPOINTMENTS_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...data,
-                    status: 'Confirmada',
-                    patient: data.patient.toUpperCase(), 
-                    reason: data.procedure, 
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
-                const errorBody = await response.json();
-                throw new Error(`Fallo al crear la cita en la API: ${errorBody.message || response.statusText}`);
+                const errorMessage = await getSafeErrorMessage(response);
+                throw new Error(errorMessage);
             }
 
             setIsNewAppointmentModalOpen(false);
@@ -174,7 +205,7 @@ export default function AgendaMedica({ goBack, setPagina }) {
 
         } catch (err) {
             console.error("Error al crear cita:", err);
-            setError("Fallo al crear la cita. Revisa la consola y el backend.");
+            setError(`Fallo al crear la cita: ${err.message}`);
         }
     };
     
@@ -217,7 +248,8 @@ export default function AgendaMedica({ goBack, setPagina }) {
                 });
 
                 if (!response.ok) {
-                    throw new Error('Fallo al eliminar la cita en la API.');
+                    const errorMessage = await getSafeErrorMessage(response);
+                    throw new Error(errorMessage);
                 }
                 
                 setAppointmentToDelete(null);
@@ -226,7 +258,7 @@ export default function AgendaMedica({ goBack, setPagina }) {
                 
             } catch (err) {
                 console.error("Error al eliminar cita:", err);
-                alert("Fallo al eliminar la cita. Revisa la consola.");
+                alert(`Fallo al eliminar la cita: ${err.message}`);
             }
         }
     };
@@ -417,6 +449,10 @@ export default function AgendaMedica({ goBack, setPagina }) {
                                     <option value="DRA. JANE SMITH">DRA. JANE SMITH</option>
                                 </select>
                                 {errors.medic && <small style={{ color: '#e35c5c' }}>{errors.medic.message || "Campo obligatorio"}</small>}
+                            </div>
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Ubicación</label>
+                                <input {...register("location")} placeholder="Consultorio 1, Sala B, etc." style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                                 <button type="button" onClick={() => setIsNewAppointmentModalOpen(false)} style={{ background: '#ccc', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>

@@ -5,7 +5,89 @@ import { useForm } from 'react-hook-form';
 // URL base de tu API Spring Boot
 const API_BASE_URL = 'http://localhost:8080/api/patients';
 
-// --- ESTILOS UNIFICADOS DE DASHBOARD PRO ---
+// --- FUNCIÓN DE UTILIDAD: MANEJO SEGURO DE ERRORES DE API ---
+// Lee el cuerpo de la respuesta. Intenta JSON, si falla, lee como texto.
+const getSafeErrorMessage = async (response) => {
+    try {
+        const errorBody = await response.json();
+        
+        // Intenta extraer el mensaje del error de Spring Boot o usar un mensaje genérico
+        if (errorBody.errors && errorBody.errors.length > 0) {
+            return errorBody.errors.map(err => `${err.field}: ${err.defaultMessage}`).join('; ');
+        }
+        return errorBody.message || errorBody.error || JSON.stringify(errorBody);
+
+    } catch { // FIX: Se elimina la declaración de variable (_e) para evitar warning
+        // 2. Si falla la lectura JSON, lee como texto
+        try {
+            const errorText = await response.text();
+            return errorText || `Error HTTP ${response.status}. Respuesta vacía.`;
+        } catch { // FIX: Se elimina la declaración de variable (_e) para evitar warning
+            return `Error HTTP ${response.status}. Fallo al procesar la respuesta.`;
+        }
+    }
+};
+
+// --- FUNCIÓN UTILITARIA para EXPORTAR a CSV/EXCEL (Se mantiene) ---
+const convertToCsvAndDownload = (data, filename, headers, keys) => {
+    if (!data || data.length === 0) {
+        alert("No hay datos para exportar.");
+        return;
+    }
+
+    // Encabezado con BOM (Byte Order Mark) para forzar UTF-8 en Excel
+    let csv = '\uFEFF'; 
+    
+    // 1. Añadir encabezados
+    csv += headers.join(';') + '\n';
+
+    // 2. Añadir filas de datos
+    data.forEach(item => {
+        const row = keys.map(key => {
+            let value = item[key] !== null && item[key] !== undefined ? item[key].toString() : '';
+            // Escape de comillas y delimitadores
+            if (value.includes(';') || value.includes('\n') || value.includes('"')) {
+                value = `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+        }).join(';');
+        csv += row + '\n';
+    });
+
+    // 3. Crear Blob y descargar
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+// --- FIN FUNCIÓN UTILITARIA ---
+
+
+// --- HELPER PARA MAPEAR NOMBRES DE CAMPOS DE BACKEND A FRONTEND ---
+const mapPatientDataForFrontend = (patient) => ({
+    // Combina nombre y apellido para la visualización/filtrado en la tabla (patient.name)
+    name: `${patient.nombrePaciente || ''} ${patient.apellidoPaciente || ''}`.trim(),
+    
+    // Mapea y renombra otros campos necesarios para la tabla/acciones
+    id: patient.id,
+    rut: patient.rutPaciente, // Usa 'rut' en el frontend
+    phone: patient.telefonoPaciente, // Usa 'phone' en el frontend
+    diagnosis: patient.diagnostico, // Usa 'diagnosis' en el frontend
+    status: patient.status,
+    
+    // Mantiene los campos originales del backend para facilitar la edición y el reenvío
+    nombrePaciente: patient.nombrePaciente,
+    apellidoPaciente: patient.apellidoPaciente,
+    rutPaciente: patient.rutPaciente,
+    telefonoPaciente: patient.telefonoPaciente,
+    diagnostico: patient.diagnostico,
+});
+
+
+// --- ESTILOS UNIFICADOS DE DASHBOARD PRO (Se mantienen) ---
 const topMenuStyle = {
     background: '#830cc4',
     color: '#fff',
@@ -44,6 +126,7 @@ const cardStyle = {
     textAlign: 'left',
 };
 
+
 export default function Pacientes({ goBack, setPagina, handleLogout }) {
     const [patients, setPatients] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -59,6 +142,7 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [successMessage, setSuccessMessage] = useState("");
 
+    // Se cambia 'name' por 'nombre' y 'apellido' en useForm
     const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
     
     // Función para manejar la navegación a las páginas de módulos
@@ -80,7 +164,11 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
                 throw new Error(`Error HTTP: ${response.status}. Asegúrese de que el endpoint GET ${API_BASE_URL} esté implementado.`);
             }
             const data = await response.json();
-            setPatients(Array.isArray(data) ? data : []);
+            
+            // APLICA MAPEO para compatibilidad con la tabla
+            const mappedData = Array.isArray(data) ? data.map(mapPatientDataForFrontend) : [];
+            
+            setPatients(mappedData);
         } catch (err) {
             console.error("Error al cargar pacientes:", err);
             setError("No se pudo conectar al API del servidor. Asegúrese de que Spring Boot esté activo en http://localhost:8080.");
@@ -100,8 +188,18 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
         patient.rut.toLowerCase().includes(searchTerm.toLowerCase()) ||
         patient.diagnosis.toLowerCase().includes(searchTerm.toLowerCase())
     );
-
-    // --- MANEJO DE MODALES Y FORMULARIOS (Se mantienen) ---
+    
+    // --- FUNCIÓN EXPORTAR PACIENTES (Mantiene los nombres de campos del frontend) ---
+    const exportPatientsToExcel = () => {
+        const headers = ["ID", "Nombre Completo", "RUT", "Teléfono", "Diagnóstico", "Estatus"];
+        // Usa los campos mapeados para la tabla (incluyendo 'name' combinado)
+        const keys = ["id", "name", "rut", "phone", "diagnosis", "status"];
+        const filename = `pacientes_${new Date().toISOString().substring(0, 10)}.csv`;
+        
+        convertToCsvAndDownload(filteredPatients, filename, headers, keys);
+    };
+    
+    // --- MANEJO DE MODALES Y FORMULARIOS (Refactorizados) ---
 
     const openNewPatientModal = () => {
         reset();
@@ -114,9 +212,11 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
         setPatientToEdit(patient);
         setIsEditModalOpen(true);
         setIsNewPatientModalOpen(false);
-        // Llenar el formulario con los datos del paciente a editar
-        setValue('name', patient.name);
-        setValue('rut', patient.rut);
+        
+        // Llenar el formulario con los campos separados del backend (almacenados en el objeto patient)
+        setValue('nombre', patient.nombrePaciente);
+        setValue('apellido', patient.apellidoPaciente);
+        setValue('rut', patient.rut); 
         setValue('phone', patient.phone);
         setValue('diagnosis', patient.diagnosis);
         setValue('status', patient.status);
@@ -129,21 +229,30 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
         setTimeout(() => setIsSuccessModalOpen(false), 3000); 
     };
 
-    // --- FUNCIONES CRUD ASÍNCRONAS (Se mantienen) ---
+    // --- FUNCIONES CRUD ASÍNCRONAS (MODIFICADAS PARA USAR EL PAYLOAD CORRECTO) ---
 
     // Crear Nuevo Paciente (POST)
     const onSubmitNewPatient = async (data) => {
         try {
+            // Construir el payload con los nombres de campos del backend
+            const payload = {
+                nombrePaciente: data.nombre,
+                apellidoPaciente: data.apellido,
+                rutPaciente: data.rut,
+                telefonoPaciente: data.phone,
+                diagnostico: data.diagnosis,
+                status: data.status,
+                clinicaId: 1, // AÑADIDO: ID mock para pasar la validación de suscripción
+            };
+            
             const response = await fetch(API_BASE_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
-                // Manejar errores de validación o del servidor
-                const errorBody = await response.json();
-                const errorMessage = errorBody.message || 'Error desconocido al crear el paciente.';
+                const errorMessage = await getSafeErrorMessage(response);
                 throw new Error(errorMessage);
             }
 
@@ -163,15 +272,25 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
         if (!patientToEdit) return;
         
         try {
+            // Construir el payload con los nombres de campos del backend
+            const payload = {
+                nombrePaciente: data.nombre,
+                apellidoPaciente: data.apellido,
+                rutPaciente: data.rut,
+                telefonoPaciente: data.phone,
+                diagnostico: data.diagnosis,
+                status: data.status,
+                clinicaId: 1, // AÑADIDO: ID mock para pasar la validación de suscripción
+            };
+
             const response = await fetch(`${API_BASE_URL}/${patientToEdit.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
-                const errorBody = await response.json();
-                const errorMessage = errorBody.message || 'Error desconocido al actualizar el paciente.';
+                const errorMessage = await getSafeErrorMessage(response);
                 throw new Error(errorMessage);
             }
 
@@ -203,7 +322,8 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
             });
 
             if (!response.ok) {
-                throw new Error('No se pudo eliminar el paciente. El servidor no respondió OK.');
+                const errorMessage = await getSafeErrorMessage(response);
+                throw new Error(errorMessage);
             }
             
             setIsDeleteModalOpen(false);
@@ -230,7 +350,7 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
     return (
         <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#faf7ff' }}>
             
-            {/* MENÚ SUPERIOR: UNIFICADO CON DASHBOARD PRO Y NAVEGACIÓN CORREGIDA */}
+            {/* MENÚ SUPERIOR: NAVEGACIÓN */}
             <div style={topMenuStyle}>
                 {/* Botón Volver (usa goBack) */}
                 <button 
@@ -284,7 +404,7 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
                         </div>
                     )}
 
-                    {/* Controles: Buscar y Nuevo Paciente */}
+                    {/* Controles: Buscar y Botones de Acción */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                         <input
                             type="text"
@@ -293,15 +413,31 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
                             onChange={(e) => setSearchTerm(e.target.value)}
                             style={{ padding: '10px', width: '40%', borderRadius: '8px', border: '1px solid #ccc' }}
                         />
-                        <button 
-                            onClick={openNewPatientModal}
-                            style={{ 
-                                background: '#830cc4', color: '#fff', padding: '10px 15px', border: 'none', 
-                                borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' 
-                            }}
-                        >
-                            + Nuevo Paciente
-                        </button>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            {/* BOTÓN: EXPORTAR A EXCEL */}
+                            <button 
+                                onClick={exportPatientsToExcel}
+                                disabled={isLoading || filteredPatients.length === 0}
+                                style={{ 
+                                    background: '#00b050', color: '#fff', padding: '10px 15px', border: 'none', 
+                                    borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold',
+                                    opacity: (isLoading || filteredPatients.length === 0) ? 0.6 : 1 
+                                }}
+                                title="Exportar pacientes visibles a CSV/Excel"
+                            >
+                                🗂️ Exportar Excel
+                            </button>
+                            {/* BOTÓN: NUEVO PACIENTE */}
+                            <button 
+                                onClick={openNewPatientModal}
+                                style={{ 
+                                    background: '#830cc4', color: '#fff', padding: '10px 15px', border: 'none', 
+                                    borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' 
+                                }}
+                            >
+                                + Nuevo Paciente
+                            </button>
+                        </div>
                     </div>
 
                     {/* Tabla de Pacientes */}
@@ -355,38 +491,51 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
                 </div>
             </div>
 
-            {/* --- MODALES (Se mantienen) --- */}
-            {/* Modal 1: Nuevo Paciente */}
+            {/* --- MODALES --- */}
+            {/* Modal 1: Nuevo Paciente (AJUSTADO: separamos Nombre y Apellido) */}
             {isNewPatientModalOpen && (
                 <div className="modal-backdrop" onClick={() => setIsNewPatientModalOpen(false)}>
                     <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: 'min(500px, 90vw)' }}>
                         <h3 style={{ color: '#830cc4', margin: '0 0 15px' }}>Registrar Nuevo Paciente</h3>
                         <form onSubmit={handleSubmit(onSubmitNewPatient)} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
                             
-                            <div className="field">
-                                <label htmlFor="name">Nombre Completo*</label>
-                                <input type="text" {...register('name', { required: 'El nombre es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                {errors.name && <small style={{ color: '#e35c5c' }}>{errors.name.message}</small>}
+                            <div style={{ display: 'flex', gap: '15px', width: '100%' }}>
+                                {/* Campo NOMBRE */}
+                                <div className="field" style={{ flex: 1 }}>
+                                    <label htmlFor="nombre">Nombre*</label>
+                                    <input type="text" {...register('nombre', { required: 'El nombre es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                    {errors.nombre && <small style={{ color: '#e35c5c' }}>{errors.nombre.message}</small>}
+                                </div>
+                                {/* Campo APELLIDO */}
+                                <div className="field" style={{ flex: 1 }}>
+                                    <label htmlFor="apellido">Apellido*</label>
+                                    <input type="text" {...register('apellido', { required: 'El apellido es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                    {errors.apellido && <small style={{ color: '#e35c5c' }}>{errors.apellido.message}</small>}
+                                </div>
                             </div>
-
+                            
+                            {/* Campo RUT */}
                             <div className="field">
                                 <label htmlFor="rut">RUT/Identificación*</label>
                                 <input type="text" {...register('rut', { required: 'El RUT es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                                 {errors.rut && <small style={{ color: '#e35c5c' }}>{errors.rut.message}</small>}
                             </div>
                             
+                            {/* Campo Teléfono */}
                             <div className="field">
                                 <label htmlFor="phone">Teléfono de Contacto*</label>
                                 <input type="text" {...register('phone', { required: 'El teléfono es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                                 {errors.phone && <small style={{ color: '#e35c5c' }}>{errors.phone.message}</small>}
                             </div>
 
+                            {/* Campo Diagnóstico */}
                             <div className="field">
                                 <label htmlFor="diagnosis">Diagnóstico Principal*</label>
                                 <input type="text" {...register('diagnosis', { required: 'El diagnóstico es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} placeholder="Ej: Hipertensión, Diabetes Tipo 2" />
                                 {errors.diagnosis && <small style={{ color: '#e35c5c' }}>{errors.diagnosis.message}</small>}
                             </div>
 
+                            {/* Campo Estatus */}
                             <div className="field">
                                 <label htmlFor="status">Estatus*</label>
                                 <select {...register('status', { required: 'El estatus es obligatorio' })} defaultValue="Activo" style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
@@ -405,37 +554,50 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
                 </div>
             )}
             
-            {/* Modal 2: Editar Paciente */}
+            {/* Modal 2: Editar Paciente (AJUSTADO: separamos Nombre y Apellido) */}
             {isEditModalOpen && patientToEdit && (
                 <div className="modal-backdrop" onClick={() => setIsEditModalOpen(false)}>
                     <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: 'min(500px, 90vw)' }}>
                         <h3 style={{ color: '#ffa500', margin: '0 0 15px' }}>Editar Paciente: {patientToEdit.name}</h3>
                         <form onSubmit={handleSubmit(onSubmitEditPatient)} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
                             
-                            <div className="field">
-                                <label htmlFor="name">Nombre Completo*</label>
-                                <input type="text" {...register('name', { required: 'El nombre es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                {errors.name && <small style={{ color: '#e35c5c' }}>{errors.name.message}</small>}
+                            <div style={{ display: 'flex', gap: '15px', width: '100%' }}>
+                                {/* Campo NOMBRE */}
+                                <div className="field" style={{ flex: 1 }}>
+                                    <label htmlFor="nombre">Nombre*</label>
+                                    <input type="text" {...register('nombre', { required: 'El nombre es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                    {errors.nombre && <small style={{ color: '#e35c5c' }}>{errors.nombre.message}</small>}
+                                </div>
+                                {/* Campo APELLIDO */}
+                                <div className="field" style={{ flex: 1 }}>
+                                    <label htmlFor="apellido">Apellido*</label>
+                                    <input type="text" {...register('apellido', { required: 'El apellido es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                    {errors.apellido && <small style={{ color: '#e35c5c' }}>{errors.apellido.message}</small>}
+                                </div>
                             </div>
-
+                            
+                            {/* Campo RUT */}
                             <div className="field">
                                 <label htmlFor="rut">RUT/Identificación*</label>
                                 <input type="text" {...register('rut', { required: 'El RUT es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                                 {errors.rut && <small style={{ color: '#e35c5c' }}>{errors.rut.message}</small>}
                             </div>
                             
+                            {/* Campo Teléfono */}
                             <div className="field">
                                 <label htmlFor="phone">Teléfono de Contacto*</label>
                                 <input type="text" {...register('phone', { required: 'El teléfono es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                                 {errors.phone && <small style={{ color: '#e35c5c' }}>{errors.phone.message}</small>}
                             </div>
 
+                            {/* Campo Diagnóstico */}
                             <div className="field">
                                 <label htmlFor="diagnosis">Diagnóstico Principal*</label>
                                 <input type="text" {...register('diagnosis', { required: 'El diagnóstico es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                                 {errors.diagnosis && <small style={{ color: '#e35c5c' }}>{errors.diagnosis.message}</small>}
                             </div>
 
+                            {/* Campo Estatus */}
                             <div className="field">
                                 <label htmlFor="status">Estatus*</label>
                                 <select {...register('status', { required: 'El estatus es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
@@ -455,7 +617,7 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
             )}
 
 
-            {/* Modal 3: Confirmación de Eliminación */}
+            {/* Modal 3: Confirmación de Eliminación (Se mantiene) */}
             {isDeleteModalOpen && patientToDelete && (
                 <div className="modal-backdrop" onClick={() => setIsDeleteModalOpen(false)}>
                     <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
@@ -483,7 +645,7 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
                 </div>
             )}
             
-            {/* Modal 4: Confirmación de Éxito */}
+            {/* Modal 4: Confirmación de Éxito (Se mantiene) */}
             {isSuccessModalOpen && (
                 <div 
                     className="modal-backdrop" 
