@@ -1,25 +1,75 @@
+// src/pages/Contacto.jsx
 import { useForm } from "react-hook-form";
 import { useState, useMemo } from "react";
+
+// URL del endpoint de contacto
+const API_CONTACTO_URL = "http://localhost:8080/api/contacto"; 
 
 export default function Contacto() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalLines, setModalLines] = useState([]);
+  const [isApiSuccess, setIsApiSuccess] = useState(false); // NUEVO ESTADO para controlar el éxito real
 
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting, isSubmitSuccessful },
+    formState: { errors, isSubmitting },
   } = useForm();
 
-  const onValid = async () => {
-    // Simula espera (tu comportamiento actual)
-    await new Promise((r) => setTimeout(r, 800));
-    reset();
+  const onValid = async (data) => {
+    try {
+        // Mapear los campos del formulario al formato esperado por el backend
+        const payload = {
+            nombre: data.nombre,
+            apellido: data.apellido,
+            clinica: data.clinica,
+            profesionales: parseInt(data.profesionales, 10), // Convertir a Integer
+            email: data.email,
+            pais: data.pais || 'CL', // Usar valor por defecto si no se selecciona
+            telefono: data.telefono,
+            mensaje: data.mensaje,
+            // NOTA: createdAt y id son manejados por el backend (JPA)
+        };
+
+        const response = await fetch(API_CONTACTO_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            // Manejar errores de validación del backend o errores HTTP
+            let errorMessage = `Error HTTP ${response.status}. Por favor, verifique los datos.`;
+            if (response.status === 400) {
+                 const errorBody = await response.json();
+                 // Intento de mapear un error de validación de Spring Boot (si el backend lo devuelve)
+                 if (errorBody.errors && errorBody.errors.length > 0) {
+                     errorMessage = errorBody.errors.map(err => `${err.field}: ${err.defaultMessage}`).join('; ');
+                 } else if (errorBody.message) {
+                     errorMessage = errorBody.message;
+                 }
+            }
+            throw new Error(errorMessage);
+        }
+
+        // Éxito: Limpia el formulario y muestra el mensaje de éxito
+        reset();
+        setIsApiSuccess(true); // Activa el estado de éxito real para mostrar el mensaje
+        
+    } catch (error) {
+        // Mostrar error en el modal de validación
+        setModalLines([`• Error de envío: ${error.message}`]);
+        setModalOpen(true);
+        setIsApiSuccess(false);
+    }
   };
 
+
   const onInvalid = (errs) => {
-    // Orden amistoso para mostrar mensajes
+    // Lógica original de errores de validación (frontend)
     const order = [
       "nombre",
       "apellido",
@@ -42,16 +92,10 @@ export default function Contacto() {
     const lines = order
       .filter((k) => errs[k])
       .map((k) => `• ${labels[k]}: ${errs[k]?.message ?? "Dato inválido"}`);
-
-    // Por si aparece algún error no listado en 'order'
-    Object.keys(errs).forEach((k) => {
-      if (!order.includes(k)) {
-        lines.push(`• ${k}: ${errs[k]?.message ?? "Dato inválido"}`);
-      }
-    });
-
+          
     setModalLines(lines.length ? lines : ["• Verifica los datos ingresados."]);
     setModalOpen(true);
+    setIsApiSuccess(false);
   };
 
   const modalTitle = useMemo(() => {
@@ -99,7 +143,8 @@ export default function Contacto() {
         {/* DERECHA: tarjeta con formulario */}
         <form
           className="contact-form-card"
-          onSubmit={handleSubmit(onValid, onInvalid)}
+          // Cambiado para usar el onSubmit con manejo asíncrono
+          onSubmit={handleSubmit(onValid, onInvalid)} 
         >
           <h2>Obtén más información</h2>
 
@@ -172,6 +217,7 @@ export default function Contacto() {
                 {...register("profesionales", {
                   required: "Numeros Obligatorios",
                   pattern: { value: /^[0-9]+$/, message: "Solo números" },
+                  min: { value: 1, message: "Debe ser al menos 1" }, // Validación añadida
                 })}
                 className={errors.profesionales ? "input-error" : ""}
                 disabled={isSubmitting}
@@ -223,6 +269,7 @@ export default function Contacto() {
                   disabled={isSubmitting}
                 >
                   <option value="CL">+56</option>
+                  {/* Agrega más códigos de país si es necesario */}
                 </select>
 
                 <input
@@ -265,13 +312,13 @@ export default function Contacto() {
             {isSubmitting ? "Enviando..." : "Enviar"}
           </button>
 
-          {isSubmitSuccessful && (
+          {isApiSuccess && (
             <p className="form-ok">¡Gracias! Te contactaremos pronto.</p>
           )}
         </form>
       </div>
 
-      {/* MODAL DE ERRORES */}
+      {/* MODAL DE ERRORES (se usa para errores de validación de frontend y errores de API) */}
       {modalOpen && (
         <div
           className="modal-backdrop"
@@ -297,6 +344,7 @@ export default function Contacto() {
                 type="button"
                 onClick={() => setModalOpen(false)}
                 className="btn btn--primary"
+                style={{ background: '#e35c5c' }}
               >
                 Entendido
               </button>
