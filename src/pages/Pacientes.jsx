@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 // URL base de tu API Spring Boot
 const API_BASE_URL = 'http://localhost:8080/api/patients';
 
-// Estilos Reutilizados del DashboardPro
+// --- ESTILOS UNIFICADOS DE DASHBOARD PRO ---
 const topMenuStyle = {
     background: '#830cc4',
     color: '#fff',
@@ -19,6 +19,23 @@ const topMenuStyle = {
     boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
 };
 
+const topMenuItemsStyle = {
+    display: 'flex',
+    gap: '20px',
+    listStyle: 'none',
+    padding: 0,
+    margin: 0,
+};
+
+const topMenuItemStyle = {
+    padding: '5px 10px',
+    fontWeight: 600,
+    opacity: 0.85,
+    transition: 'opacity 0.2s',
+    whiteSpace: 'nowrap',
+};
+// --- FIN ESTILOS UNIFICADOS ---
+
 const cardStyle = {
     backgroundColor: '#fff',
     borderRadius: '12px',
@@ -27,13 +44,13 @@ const cardStyle = {
     textAlign: 'left',
 };
 
-export default function Pacientes({ goBack }) {
+export default function Pacientes({ goBack, setPagina, handleLogout }) {
     const [patients, setPatients] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Estados para Modales de Formulario y Estado
+    // Estados para Modales
     const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [patientToEdit, setPatientToEdit] = useState(null);
@@ -43,6 +60,15 @@ export default function Pacientes({ goBack }) {
     const [successMessage, setSuccessMessage] = useState("");
 
     const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
+    
+    // Función para manejar la navegación a las páginas de módulos
+    const navigateTo = (page) => {
+      if (setPagina) {
+        setPagina(page);
+      } else {
+        console.error("setPagina is not defined. Cannot navigate to:", page);
+      }
+    };
 
     // --- FUNCIÓN PRINCIPAL: CARGAR PACIENTES (GET) ---
     const fetchPatients = useCallback(async () => {
@@ -51,7 +77,7 @@ export default function Pacientes({ goBack }) {
         try {
             const response = await fetch(API_BASE_URL);
             if (!response.ok) {
-                throw new Error(`Error HTTP: ${response.status}`);
+                throw new Error(`Error HTTP: ${response.status}. Asegúrese de que el endpoint GET ${API_BASE_URL} esté implementado.`);
             }
             const data = await response.json();
             setPatients(Array.isArray(data) ? data : []);
@@ -75,7 +101,7 @@ export default function Pacientes({ goBack }) {
         patient.diagnosis.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // --- MANEJO DE MODALES Y FORMULARIOS ---
+    // --- MANEJO DE MODALES Y FORMULARIOS (Se mantienen) ---
 
     const openNewPatientModal = () => {
         reset();
@@ -103,7 +129,7 @@ export default function Pacientes({ goBack }) {
         setTimeout(() => setIsSuccessModalOpen(false), 3000); 
     };
 
-    // --- FUNCIONES CRUD ASÍNCRONAS ---
+    // --- FUNCIONES CRUD ASÍNCRONAS (Se mantienen) ---
 
     // Crear Nuevo Paciente (POST)
     const onSubmitNewPatient = async (data) => {
@@ -204,15 +230,37 @@ export default function Pacientes({ goBack }) {
     return (
         <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#faf7ff' }}>
             
-            {/* MENÚ SUPERIOR */}
+            {/* MENÚ SUPERIOR: UNIFICADO CON DASHBOARD PRO Y NAVEGACIÓN CORREGIDA */}
             <div style={topMenuStyle}>
+                {/* Botón Volver (usa goBack) */}
                 <button 
-                    onClick={goBack}
+                    onClick={goBack} 
                     style={{ all: 'unset', color: '#fff', fontSize: '1.5rem', fontWeight: 800, cursor: 'pointer' }}
                 >
                     ← Volver al Dashboard
                 </button>
-                <span style={{ fontSize: '1rem', fontWeight: 600 }}>Módulo Pacientes</span>
+                <ul style={topMenuItemsStyle}>
+                    {/* Botón Pacientes (Activo) */}
+                    <li style={{...topMenuItemStyle, opacity: 1}}>
+                      <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('pacientes')}>Pacientes</button>
+                    </li>
+                    {/* Botón Agenda */}
+                    <li style={topMenuItemStyle}>
+                      <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('agenda_medica')}>Agenda médica</button>
+                    </li>
+                    {/* Botón Recetas */}
+                    <li style={topMenuItemStyle}>
+                      <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('recetas_medicas')}>Recetas médicas</button>
+                    </li>
+                </ul>
+                {/* Botón Cerrar Sesión (Usa handleLogout de App.jsx) */}
+                <button 
+                    onClick={handleLogout}
+                    style={{ all: 'unset', background: 'rgba(255, 255, 255, 0.2)', border: 'none', color: '#fff', 
+                            padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                >
+                    Cerrar Sesión
+                </button>
             </div>
 
             {/* CONTENIDO DEL MÓDULO */}
@@ -307,7 +355,8 @@ export default function Pacientes({ goBack }) {
                 </div>
             </div>
 
-            {/* --- MODAL 1: NUEVO PACIENTE (FORMULARIO POST) --- */}
+            {/* --- MODALES (Se mantienen) --- */}
+            {/* Modal 1: Nuevo Paciente */}
             {isNewPatientModalOpen && (
                 <div className="modal-backdrop" onClick={() => setIsNewPatientModalOpen(false)}>
                     <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: 'min(500px, 90vw)' }}>
@@ -356,7 +405,7 @@ export default function Pacientes({ goBack }) {
                 </div>
             )}
             
-            {/* --- MODAL 2: EDITAR PACIENTE (FORMULARIO PUT) --- */}
+            {/* Modal 2: Editar Paciente */}
             {isEditModalOpen && patientToEdit && (
                 <div className="modal-backdrop" onClick={() => setIsEditModalOpen(false)}>
                     <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: 'min(500px, 90vw)' }}>
@@ -406,7 +455,7 @@ export default function Pacientes({ goBack }) {
             )}
 
 
-            {/* --- MODAL 3: CONFIRMACIÓN DE ELIMINACIÓN (DELETE) --- */}
+            {/* Modal 3: Confirmación de Eliminación */}
             {isDeleteModalOpen && patientToDelete && (
                 <div className="modal-backdrop" onClick={() => setIsDeleteModalOpen(false)}>
                     <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
@@ -434,7 +483,7 @@ export default function Pacientes({ goBack }) {
                 </div>
             )}
             
-            {/* --- MODAL 4: CONFIRMACIÓN DE ÉXITO --- */}
+            {/* Modal 4: Confirmación de Éxito */}
             {isSuccessModalOpen && (
                 <div 
                     className="modal-backdrop" 

@@ -1,25 +1,14 @@
 // src/pages/DashboardPro.jsx
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import BarChart from '../components/BarChart.jsx';
 import UserManagement from '../components/UserManagement.jsx';
 import CalendarModule from '../components/CalendarModule.jsx'; 
-// Eliminamos las importaciones de imágenes que ya no se usan (drficha2.png, ficha3.png)
 
+// URL para conectar el gráfico a la API (endpoint pendiente)
+const API_CHART_URL = 'http://localhost:8080/api/dashboard/citas-mensuales'; 
+const API_AGENDA_SUMMARY_URL = 'http://localhost:8080/api/dashboard/resumen-agenda';
 
-// Estilo básico para simular un módulo/tarjeta del dashboard
-const cardStyle = {
-    backgroundColor: '#fff',
-    borderRadius: '12px',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.05)',
-    padding: '20px',
-    textAlign: 'left',
-    marginBottom: '20px',
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-};
-
-// --- ESTILOS DE MENÚ SUPERIOR ---
+// Estilos de contenedores (se mantienen)
 const topMenuStyle = {
     background: '#830cc4',
     color: '#fff',
@@ -32,7 +21,6 @@ const topMenuStyle = {
     flexWrap: 'wrap',
     boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
 };
-
 const topMenuItemsStyle = {
     display: 'flex',
     gap: '20px',
@@ -40,49 +28,95 @@ const topMenuItemsStyle = {
     padding: 0,
     margin: 0,
 };
-
 const topMenuItemStyle = {
     padding: '5px 10px',
     fontWeight: 600,
-    // Estilos de opacidad y transición aplicados al li
     opacity: 0.85,
     transition: 'opacity 0.2s',
     whiteSpace: 'nowrap',
 };
-// ----------------------------------------
+const cardStyle = {
+    backgroundColor: '#fff',
+    borderRadius: '12px',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.05)',
+    padding: '20px',
+    textAlign: 'left',
+    marginBottom: '20px',
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+};
 
+export default function DashboardPro({ userName, handleLogout, setPagina }) { 
+  const [chartData, setChartData] = useState([]); 
+  const [chartMaxValue, setChartMaxValue] = useState(100);
+  const [chartError, setChartError] = useState(null);
+  
+  const [agendaSummary, setAgendaSummary] = useState(null); 
+  const [agendaError, setAgendaError] = useState(null); 
 
-const MockCitas = () => (
-    <div style={cardStyle}>
-        <h4 style={{ color: '#4a0376', margin: '0 0 10px' }}>Estado de Citas</h4>
-        <ul style={{ listStyle: 'none', padding: '0', fontSize: '14px', color: '#555' }}>
-            <li><span style={{ color: '#830cc4', fontWeight: 800 }}>★</span> Reservadas</li>
-            <li><span style={{ color: '#00b050', fontWeight: 800 }}>●</span> En espera</li>
-            <li><span style={{ color: '#e35c5c', fontWeight: 800 }}>●</span> Canceladas</li>
-        </ul>
-        <div style={{ marginTop: '20px', fontSize: '12px' }}>
-        </div>
-    </div>
-);
-
-
-export default function DashboardPro({ userName, handleLogout, setPagina }) { // Recibe setPagina
   
   // Función para manejar la navegación a las páginas de módulos
   const navigateTo = (page) => {
       setPagina(page);
   };
+  
+  // --- LÓGICA DE OBTENCIÓN DE DATOS PARA EL DASHBOARD ---
+  const fetchDashboardData = useCallback(async () => {
+      // 1. Fetch de datos del Gráfico
+      try {
+        const chartResponse = await fetch(API_CHART_URL); 
+        
+        if (!chartResponse.ok) {
+            throw new Error(`Gráfico: Endpoint no implementado o API inactiva.`);
+        }
+        
+        const data = await chartResponse.json();
+        
+        if (Array.isArray(data) && data.length > 0) {
+            const maxVal = Math.max(...data.map(d => d.value)) + 5; 
+            setChartData(data);
+            setChartMaxValue(maxVal);
+        } else {
+            setChartData([]); 
+        }
+
+      } catch (error) {
+        setChartError(error.message); 
+        setChartData([]); // Establecer datos vacíos para mostrar mensaje de 'No data'
+      }
+      
+      // 2. Fetch de resumen de Agenda
+      try {
+        const agendaResponse = await fetch(API_AGENDA_SUMMARY_URL);
+        
+        if (!agendaResponse.ok) {
+            throw new Error("Resumen: Endpoint no implementado o API inactiva.");
+        }
+        
+        const summaryData = await agendaResponse.json();
+        setAgendaSummary(summaryData);
+        
+      } catch(error) {
+          setAgendaError(error.message);
+          setAgendaSummary([]); // Se establece vacío
+      }
+      
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]); 
 
 
   return (
     <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#faf7ff' }}>
       
       {/* --------------------------------- */}
-      {/* 1. MENÚ DE NAVEGACIÓN SUPERIOR */}
+      {/* 1. MENÚ DE NAVEGACIÓN SUPERIOR (EL ÚNICO MENÚ CORRECTO) */}
       {/* --------------------------------- */}
       <div style={topMenuStyle}>
         
-        {/* Logo/Botón para volver al Dashboard principal */}
         <button 
             onClick={() => navigateTo('dashboard_pro')}
             style={{ all: 'unset', color: '#fff', fontSize: '1.5rem', fontWeight: 800, cursor: 'pointer' }}
@@ -115,7 +149,7 @@ export default function DashboardPro({ userName, handleLogout, setPagina }) { //
       </div>
 
       {/* --------------------------------- */}
-      {/* 2. CONTENIDO PRINCIPAL Y CUERPO (El Dashboard en sí) */}
+      {/* 2. CONTENIDO PRINCIPAL Y CUERPO (LIMPIO) */}
       {/* --------------------------------- */}
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <header style={{ marginBottom: '30px', textAlign: 'left' }}>
@@ -123,32 +157,83 @@ export default function DashboardPro({ userName, handleLogout, setPagina }) { //
           <h2 style={{ color: '#830cc4', fontSize: '1.5rem', fontWeight: 600 }}>Centro de Gestión Dr. Pro 👑</h2>
         </header>
         
-        {/* GRUPO DE MÓDULOS SUPERIORES (3 COLUMNAS: Gráfico | Estado | Camas) */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '20px' }}>
+        {/* GRUPO SUPERIOR: GRÁFICO */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
           
-          {/* COLUMNA 1: Gráfico de Barras */}
-          <div style={{ gridColumn: 'span 2' }}><BarChart /></div> 
-
-
-          {/* COLUMNA 3: Gestión de Camas (Mockup Visual) */}
+          {/* COLUMNA 1: Gráfico de Barras - Ocupa 3/3 en diseño adaptativo */}
+          <div style={{ gridColumn: '1 / -1' }}>
+            {/* Mensaje de Error, si la API falla */}
+            {chartError && (
+              <div style={{ padding: '10px', backgroundColor: '#fdd', border: '1px solid #e35c5c', color: '#e35c5c', borderRadius: '4px', marginBottom: '15px' }}>
+                **Error de Conexión (Gráfico):** {chartError}
+              </div>
+            )}
+            <BarChart 
+                data={chartData} 
+                maxValue={chartMaxValue} 
+            />
+          </div> 
         </div>
         
         {/* GRUPO DE MÓDULOS INTERMEDIOS (3 COLUMNAS: Calendario | Agenda | Ficha) */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginTop: '20px' }}>
             
-            {/* MÓDULO 4: CALENDARIO DINÁMICO (CalendarModule) */}
+            {/* MÓDULO 4: CALENDARIO DINÁMICO */}
             <div style={{ gridColumn: 'span 1' }}><CalendarModule /></div>
 
-            {/* MÓDULO 5: Agenda Médica (Mockup Visual) */}
-
+            {/* MÓDULO 5: Agenda Médica (Resumen - CONECTADO) */}
+            <div style={cardStyle}>
+                <h4 style={{ color: '#4a0376', margin: '0 0 10px', fontSize: '1.4rem' }}>Agenda Médica</h4>
+                {agendaError ? (
+                    <p style={{ margin: '10px 0', fontSize: '0.9rem', color: '#e35c5c' }}>
+                        **Error de Conexión:** {agendaError}
+                    </p>
+                ) : (
+                    agendaSummary && Array.isArray(agendaSummary) && agendaSummary.length > 0 ? (
+                        agendaSummary.map((item, index) => (
+                            <div key={index} style={{ padding: '5px 0', borderBottom: '1px solid #eee' }}>
+                                <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#830cc4' }}>{item.medic}</span>
+                                <p style={{ margin: '0', fontSize: '0.9rem', color: '#555' }}>Cita {item.time} | {item.patient}</p>
+                            </div>
+                        ))
+                    ) : (
+                        <p style={{ margin: '10px 0', fontSize: '0.9rem', color: '#999' }}>
+                            Implementar la conexión a la API para resumen.
+                        </p>
+                    )
+                )}
+                <button 
+                  onClick={() => navigateTo('agenda_medica')}
+                  style={{ all: 'unset', display: 'block', width: '100%', textAlign: 'center', marginTop: '20px', color: '#830cc4', cursor: 'pointer', fontWeight: 'bold', border: '1px solid #830cc4', padding: '8px', borderRadius: '8px' }}
+                >
+                  Ver Agenda Completa
+                </button>
+            </div>
             
-            {/* MÓDULO 6: Ficha Clínica (Mockup Visual) */}
-
+            {/* MÓDULO 6: Ficha Clínica */}
+            <div style={cardStyle}>
+                <h4 style={{ color: '#4a0376', margin: '0 0 10px', fontSize: '1.4rem' }}>Ficha Clínica Rápida</h4>
+                <p style={{ margin: '0 0 15px', color: '#555', fontSize: '0.9rem' }}>Busca un paciente para una vista rápida.</p>
+                <input 
+                    type="text" 
+                    placeholder="Buscar paciente por RUT/Nombre" 
+                    style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', marginBottom: '15px' }}
+                />
+                <p style={{ margin: '10px 0', fontSize: '0.9rem', color: '#999' }}>
+                    Implementar la búsqueda en la API de Pacientes.
+                </p>
+                <button 
+                  onClick={() => navigateTo('pacientes')}
+                  style={{ all: 'unset', display: 'block', width: '100%', textAlign: 'center', marginTop: '20px', color: '#830cc4', cursor: 'pointer', fontWeight: 'bold', border: '1px solid #830cc4', padding: '8px', borderRadius: '8px' }}
+                >
+                  Ir a Expediente Pacientes
+                </button>
+            </div>
         </div>
 
-        {/* SECCIÓN INFERIOR: Gestión de Usuarios (Nuevo, Full Width) */}
+        {/* SECCIÓN INFERIOR: Gestión de Usuarios */}
         <div style={{ marginTop: '20px' }}><UserManagement /></div>
-
+        
       </div>
     </div>
   );

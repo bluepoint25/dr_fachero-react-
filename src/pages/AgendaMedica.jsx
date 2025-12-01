@@ -1,8 +1,11 @@
 // src/pages/AgendaMedica.jsx
-import React, { useState, useMemo } from 'react'; // Importar useMemo
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 
-// Estilos Reutilizados del DashboardPro/RecetasMedicas
+// URL base de la API para Citas
+const API_APPOINTMENTS_URL = 'http://localhost:8080/api/appointments'; 
+
+// Estilos Reutilizados (Se mantienen)
 const topMenuStyle = {
     background: '#830cc4',
     color: '#fff',
@@ -16,6 +19,22 @@ const topMenuStyle = {
     boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
 };
 
+const topMenuItemsStyle = {
+    display: 'flex',
+    gap: '20px',
+    listStyle: 'none',
+    padding: 0,
+    margin: 0,
+};
+
+const topMenuItemStyle = {
+    padding: '5px 10px',
+    fontWeight: 600,
+    opacity: 0.85,
+    transition: 'opacity 0.2s',
+    whiteSpace: 'nowrap',
+};
+
 const cardStyle = {
     backgroundColor: '#fff',
     borderRadius: '12px',
@@ -24,13 +43,8 @@ const cardStyle = {
     textAlign: 'left',
 };
 
-// Datos simulados de citas (incluyendo todos los campos para el comprobante)
-const initialAppointments = [
-    { id: 1, time: '09:00', date: new Date().toISOString().substring(0, 10), patient: 'Ana GÓMEZ', rut: '18123456-7', reason: 'Control de rutina', status: 'Confirmada', medic: 'DR. FACHERO (PRO)', location: 'Clínica Los Andes' },
-    { id: 2, time: '10:00', date: new Date().toISOString().substring(0, 10), patient: 'Luis MARTÍNEZ', rut: '15678901-2', reason: 'Dolor de espalda', status: 'En espera', medic: 'DR. FACHERO (PRO)', location: 'Clínica Los Andes' },
-];
 
-// Mock function para estructurar los datos del recibo
+// Función auxiliar para estructurar los datos del recibo (Necesaria para printAppointment)
 const getReceiptData = (appointment) => ({
     patientName: appointment.patient.toUpperCase(),
     patientId: appointment.rut,
@@ -42,88 +56,147 @@ const getReceiptData = (appointment) => ({
 });
 
 
-export default function AgendaMedica({ goBack }) {
-    const [appointments, setAppointments] = useState(initialAppointments);
-    const [searchTerm, setSearchTerm] = useState('');
+export default function AgendaMedica({ goBack, setPagina }) { 
+    // State variables
+    const [appointments, setAppointments] = useState([]); 
+    const [searchTerm, setSearchTerm] = useState(''); // Usada en el input
+    const [isLoading, setIsLoading] = useState(true); 
+    const [error, setError] = useState(null); 
     
-    // Estados para Modales
+    // Estados para Modales (Usados en JSX)
     const [isNewAppointmentModalOpen, setIsNewAppointmentModalOpen] = useState(false); 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); 
     const [appointmentToDelete, setAppointmentToDelete] = useState(null);
-
-    // ESTADOS PARA EL MODAL DE RECIBO
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
     const [receiptData, setReceiptData] = useState(null);
-    
-    // ESTADOS PARA EL MODAL DE VALIDACIÓN (NUEVO)
     const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
     const [validationModalLines, setValidationModalLines] = useState([]);
 
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm();
+    
+    
+    // Función para manejar la navegación a las páginas de módulos
+    const navigateTo = (page) => {
+      if (setPagina) {
+        setPagina(page);
+      } else {
+        console.error("setPagina is not defined. Cannot navigate to:", page); 
+      }
+    };
+    
+    // --- FUNCIÓN DE CARGA DE DATOS DE LA API (GET) ---
+    const fetchAppointments = useCallback(async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const response = await fetch(API_APPOINTMENTS_URL);
 
+            if (!response.ok) {
+                throw new Error(`Error al cargar las citas. HTTP: ${response.status}. Asegúrese de que el endpoint GET ${API_APPOINTMENTS_URL} esté implementado.`);
+            }
+            
+            const data = await response.json();
+            setAppointments(Array.isArray(data) ? data : []);
+
+        } catch (err) {
+            console.error("Error al cargar citas:", err);
+            setError(`Error al cargar citas. Failed to fetch`); 
+            setAppointments([]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchAppointments();
+    }, [fetchAppointments]);
+    // --- FIN FUNCIÓN DE CARGA ---
+
+    // La variable setSearchTerm se usa aquí:
     const filteredAppointments = appointments.filter(app =>
         app.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.reason.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // --- FUNCIONES DE GESTIÓN ---
+    // --- FUNCIÓN PARA CAMBIAR EL ESTADO (PUT/PATCH a la API) ---
+    const changeStatus = async (id, newStatus) => {
+        try {
+            const response = await fetch(`${API_APPOINTMENTS_URL}/${id}/status`, {
+                method: 'PATCH', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus }),
+            });
 
-    const changeStatus = (id, newStatus) => {
-        setAppointments(appointments.map(app => 
-            app.id === id ? { ...app, status: newStatus } : app
-        ));
+            if (!response.ok) {
+                throw new Error('Fallo al actualizar el estado en la API.');
+            }
+
+            setAppointments(appointments.map(app => 
+                app.id === id ? { ...app, status: newStatus } : app
+            ));
+
+        } catch (err) {
+            console.error("Error al cambiar estado:", err);
+            alert("Fallo al actualizar el estado de la cita. Revisa la consola.");
+        }
     };
-
-    // Abre Modal de Recibo con datos estructurados
+    
+    // Función para mostrar el modal de impresión (Usa getReceiptData y setReceiptData)
     const printAppointment = (appointment) => {
         const data = getReceiptData(appointment);
         setReceiptData(data);
         setIsReceiptModalOpen(true);
     };
 
-    // Añadir Nueva Cita (Manejo del formulario - Lógica de datos válidos)
-    const onSubmitNewAppointment = (data) => {
-        const newAppointment = {
-            id: Date.now(),
-            ...data,
-            status: 'Confirmada', 
-            reason: data.procedure, // Mapeamos 'procedure' a 'reason' para la tabla
-            patient: data.patient.toUpperCase(), // Estilo de mayúsculas para el recibo
-        };
-        // Aseguramos que el paciente, si no tiene RUT, lo tenga como "NO REGISTRADO"
-        if (!newAppointment.rut) newAppointment.rut = "NO REGISTRADO";
+    // Función para crear nueva cita (POST a la API)
+    const onSubmitNewAppointment = async (data) => {
+        try {
+            const response = await fetch(API_APPOINTMENTS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...data,
+                    status: 'Confirmada',
+                    patient: data.patient.toUpperCase(), 
+                    reason: data.procedure, 
+                }),
+            });
 
-        setAppointments([...appointments, newAppointment].sort((a, b) => a.time.localeCompare(b.time)));
-        setIsNewAppointmentModalOpen(false);
-        reset();
+            if (!response.ok) {
+                const errorBody = await response.json();
+                throw new Error(`Fallo al crear la cita en la API: ${errorBody.message || response.statusText}`);
+            }
+
+            setIsNewAppointmentModalOpen(false);
+            reset();
+            fetchAppointments(); 
+
+        } catch (err) {
+            console.error("Error al crear cita:", err);
+            setError("Fallo al crear la cita. Revisa la consola y el backend.");
+        }
     };
     
-    // VALIDACIÓN (NUEVO: Lógica de datos inválidos - Abre Modal)
+    // Función para manejar errores de validación (Usa setValidationModalLines)
     const onInvalidNewAppointment = (errs) => {
-        const order = [
-            "patient", "rut", "date", "time", "procedure", "medic", "location"
-        ];
-        const labels = {
-            patient: "Nombre Paciente",
-            rut: "C. Identidad/RUT",
-            date: "Fecha",
-            time: "Hora",
-            procedure: "Procedimiento/Motivo",
-            medic: "Médico",
-            location: "Lugar",
-        };
-
-        const lines = order
-          .filter((k) => errs[k])
-          .map((k) => `• ${labels[k]}: ${errs[k]?.message ?? "Dato inválido"}`);
-          
-        setValidationModalLines(lines.length ? lines : ["• Verifica los datos ingresados."]);
-        setIsValidationModalOpen(true);
-        setIsNewAppointmentModalOpen(true); // Asegura que el modal de formulario siga visible
+      const errorLines = Object.keys(errs).map(key => {
+        const fieldName = {
+            patient: 'Nombre del paciente',
+            rut: 'RUT/Identificación',
+            time: 'Hora',
+            date: 'Fecha',
+            procedure: 'Motivo/Procedimiento',
+            medic: 'Médico',
+        }[key] || key;
+        return `${fieldName}: Campo requerido`;
+      });
+      setValidationModalLines(errorLines);
+      setIsValidationModalOpen(true);
     };
     
-    const validationModalTitle = useMemo(() => {
+    // Título del modal de validación (Usado en JSX)
+    const memoValidationModalTitle = useMemo(() => {
         const count = validationModalLines.length;
         return count > 1 ? "Verifique los datos:" : "Verifique el dato:";
     }, [validationModalLines]);
@@ -135,16 +208,30 @@ export default function AgendaMedica({ goBack }) {
         setIsDeleteModalOpen(true);
     };
 
-    // Confirmar Borrado
-    const confirmDeletion = () => {
+    // Función para confirmar borrado (DELETE a la API)
+    const confirmDeletion = async () => {
         if (appointmentToDelete) {
-            setAppointments(appointments.filter(app => app.id !== appointmentToDelete.id));
-            setAppointmentToDelete(null);
-            setIsDeleteModalOpen(false);
+            try {
+                const response = await fetch(`${API_APPOINTMENTS_URL}/${appointmentToDelete.id}`, {
+                    method: 'DELETE',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Fallo al eliminar la cita en la API.');
+                }
+                
+                setAppointmentToDelete(null);
+                setIsDeleteModalOpen(false);
+                fetchAppointments(); 
+                
+            } catch (err) {
+                console.error("Error al eliminar cita:", err);
+                alert("Fallo al eliminar la cita. Revisa la consola.");
+            }
         }
     };
-
-    // Función para renderizar una línea del comprobante
+    
+    // Función para renderizar una línea del comprobante (Usada en el Modal)
     const renderReceiptLine = (label, value) => (
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '1rem' }}>
             <strong style={{ minWidth: '150px' }}>{label}:</strong> 
@@ -155,27 +242,52 @@ export default function AgendaMedica({ goBack }) {
     return (
         <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#faf7ff' }}>
             
-            {/* MENÚ SUPERIOR */}
+            {/* MENÚ SUPERIOR: NAVEGACIÓN CORREGIDA */}
             <div style={topMenuStyle}>
                 <button 
-                    onClick={goBack}
+                    onClick={goBack} // Volver al Dashboard
                     style={{ all: 'unset', color: '#fff', fontSize: '1.5rem', fontWeight: 800, cursor: 'pointer' }}
                 >
                     ← Volver al Dashboard
                 </button>
-                <span style={{ fontSize: '1rem', fontWeight: 600 }}>Módulo Agenda Médica</span>
+                <ul style={topMenuItemsStyle}>
+                    {/* Botón Pacientes */}
+                    <li style={topMenuItemStyle}>
+                      <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('pacientes')}>Pacientes</button>
+                    </li>
+                    {/* Botón Agenda (Activo) */}
+                    <li style={{...topMenuItemStyle, opacity: 1}}>
+                      <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('agenda_medica')}>Agenda médica</button>
+                    </li>
+                    {/* Botón Recetas */}
+                    <li style={topMenuItemStyle}>
+                      <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('recetas_medicas')}>Recetas médicas</button>
+                    </li>
+                </ul>
+                {/* Botón Cerrar Sesión */}
+                <button 
+                    onClick={() => navigateTo('login')}
+                    style={{ all: 'unset', background: 'rgba(255, 255, 255, 0.2)', border: 'none', color: '#fff', 
+                            padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                >
+                    Cerrar Sesión
+                </button>
             </div>
-
+            
             {/* CONTENIDO DEL MÓDULO */}
             <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
                 <div style={cardStyle}>
                     <h1 style={{ color: '#830cc4', marginBottom: '10px' }}>Agenda de Citas Diarias</h1>
-                    <p style={{ color: '#555', marginBottom: '30px' }}>Citas programadas para el día de hoy.</p>
+                    <p style={{ color: '#555', marginBottom: '30px' }}>Citas programadas.</p>
+                    
+                    {error && (
+                        <div style={{ padding: '10px', backgroundColor: '#fdd', border: '1px solid #e35c5c', color: '#e35c5c', borderRadius: '4px', marginBottom: '20px' }}>
+                            **Error de Carga:** {error}
+                        </div>
+                    )}
 
-                    {/* Controles y Filtros */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                         
-                        {/* Búsqueda */}
                         <input
                             type="text"
                             placeholder="Buscar por paciente o motivo..."
@@ -184,9 +296,7 @@ export default function AgendaMedica({ goBack }) {
                             style={{ padding: '10px', width: '40%', borderRadius: '8px', border: '1px solid #ccc' }}
                         />
                         
-                        {/* Botones de Acción */}
                         <div>
-                            {/* BOTÓN + NUEVA CITA */}
                             <button 
                                 onClick={() => setIsNewAppointmentModalOpen(true)} 
                                 style={{ 
@@ -199,234 +309,170 @@ export default function AgendaMedica({ goBack }) {
                         </div>
                     </div>
 
+                    {/* Mensaje de Carga */}
+                    {isLoading && (
+                        <p style={{ textAlign: 'center', color: '#830cc4' }}>Cargando citas...</p>
+                    )}
+
                     {/* Tabla de Citas */}
-                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '2px solid #830cc4', backgroundColor: '#f9f5ff' }}>
-                                <th style={{ padding: '15px 10px', textAlign: 'left', width: '10%' }}>Hora</th>
-                                <th style={{ padding: '15px 10px', textAlign: 'left', width: '25%' }}>Paciente</th>
-                                <th style={{ padding: '15px 10px', textAlign: 'left', width: '25%' }}>Motivo</th>
-                                <th style={{ padding: '15px 10px', textAlign: 'center', width: '15%' }}>Estado</th>
-                                <th style={{ padding: '15px 10px', textAlign: 'center', width: '25%' }}>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredAppointments.length > 0 ? filteredAppointments.map(app => (
-                                <tr key={app.id} style={{ borderBottom: '1px solid #eee' }}>
-                                    <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>{app.time}</td>
-                                    <td style={{ padding: '15px 10px' }}>{app.patient}</td>
-                                    <td style={{ padding: '15px 10px', color: '#555' }}>{app.reason}</td>
-                                    <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                        {/* Selector de Estado */}
-                                        <select 
-                                            value={app.status}
-                                            onChange={(e) => changeStatus(app.id, e.target.value)}
-                                            style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
-                                            title="Cambiar estado"
-                                        >
-                                            <option value="Confirmada">Confirmada</option>
-                                            <option value="En espera">En espera</option>
-                                            <option value="Finalizada">Finalizada</option>
-                                        </select>
-                                    </td>
-                                    <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                        <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
-                                            {/* Botón de Impresión (Documento de cita) */}
-                                            <button 
-                                                onClick={() => printAppointment(app)}
-                                                style={{ background: '#00b050', color: '#fff', padding: '5px 8px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-                                                title="Imprimir comprobante"
-                                            >
-                                                📄
-                                            </button>
-                                            {/* Botón de Eliminación (Abre modal) */}
-                                            <button 
-                                                onClick={() => deleteAppointment(app)}
-                                                style={{ background: '#e35c5c', color: '#fff', padding: '5px 8px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
-                                                title="Borrar cita"
-                                            >
-                                                🗑️
-                                            </button>
-                                        </div>
-                                    </td>
+                    {!isLoading && (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
+                            <thead>
+                                <tr style={{ borderBottom: '2px solid #830cc4', backgroundColor: '#f9f5ff' }}>
+                                    <th style={{ padding: '15px 10px', textAlign: 'left', width: '10%' }}>Hora</th>
+                                    <th style={{ padding: '15px 10px', textAlign: 'left', width: '25%' }}>Paciente</th>
+                                    <th style={{ padding: '15px 10px', textAlign: 'left', width: '25%' }}>Motivo</th>
+                                    <th style={{ padding: '15px 10px', textAlign: 'center', width: '15%' }}>Estado</th>
+                                    <th style={{ padding: '15px 10px', textAlign: 'center', width: '25%' }}>Acciones</th>
                                 </tr>
-                            )) : (
-                                <tr>
-                                    <td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-                                        No se encontraron citas para la búsqueda actual.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {filteredAppointments.length > 0 ? filteredAppointments.map(app => (
+                                    <tr key={app.id} style={{ borderBottom: '1px solid #eee' }}>
+                                        <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>{app.time}</td>
+                                        <td style={{ padding: '15px 10px' }}>{app.patient}</td>
+                                        <td style={{ padding: '15px 10px', color: '#555' }}>{app.reason}</td>
+                                        <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                            <select 
+                                                value={app.status}
+                                                onChange={(e) => changeStatus(app.id, e.target.value)}
+                                                style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                title="Cambiar estado"
+                                            >
+                                                <option value="Confirmada">Confirmada</option>
+                                                <option value="En espera">En espera</option>
+                                                <option value="Finalizada">Finalizada</option>
+                                            </select>
+                                        </td>
+                                        <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                                                <button 
+                                                    onClick={() => printAppointment(app)}
+                                                    style={{ background: '#00b050', color: '#fff', padding: '5px 8px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                                                    title="Imprimir comprobante"
+                                                >
+                                                    📄
+                                                </button>
+                                                <button 
+                                                    onClick={() => deleteAppointment(app)}
+                                                    style={{ background: '#e35c5c', color: '#fff', padding: '5px 8px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                                                    title="Borrar cita"
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )) : (
+                                    <tr>
+                                        <td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+                                            No se encontraron citas programadas.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    )}
                 </div>
             </div>
             
-            {/* --- MODAL 1: AÑADIR NUEVA CITA (NUEVOS CAMPOS) --- */}
+            {/* --- MODALES (Usan las variables de estado) --- */}
+            
             {isNewAppointmentModalOpen && (
-                <div className="modal-backdrop" onClick={() => setIsNewAppointmentModalOpen(false)}>
-                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: 'min(500px, 90vw)' }}>
-                        <h3 style={{ color: '#830cc4', margin: '0 0 15px' }}>Agendar Nueva Cita</h3>
-                        {/* CONEXIÓN: onValid y onInvalid */}
-                        <form onSubmit={handleSubmit(onSubmitNewAppointment, onInvalidNewAppointment)} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '20px' }}>
-                            
-                            {/* INFORMACIÓN DEL PACIENTE */}
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <h4 style={{ color: '#555', margin: '0 0 10px', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>Información del Paciente</h4>
+                <div className="modal-backdrop" onClick={() => setIsNewAppointmentModalOpen(false)} style={{ zIndex: 1000 }}>
+                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%' }}>
+                        <h2 style={{ color: '#830cc4', marginTop: 0 }}>Agendar Nueva Cita</h2>
+                        <form onSubmit={handleSubmit(onSubmitNewAppointment, onInvalidNewAppointment)}>
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Paciente*</label>
+                                <input {...register("patient", { required: "El nombre es obligatorio" })} placeholder="Nombre completo" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                {errors.patient && <small style={{ color: '#e35c5c' }}>{errors.patient.message || "Campo obligatorio"}</small>}
                             </div>
-                            
-                            <div className="field" style={{ gridColumn: 'span 2' }}>
-                                <label htmlFor="patient">Nombre Completo*</label>
-                                <input type="text" {...register('patient', { required: 'El nombre es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', width: '100%' }} />
-                                {errors.patient && <small className="input-hint" style={{ color: '#e35c5c' }}>{errors.patient.message}</small>}
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>RUT/Identificación</label>
+                                <input {...register("rut")} placeholder="RUT o ID del paciente" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                             </div>
-                            <div className="field" style={{ gridColumn: 'span 2' }}>
-                                <label htmlFor="rut">C. Identidad (RUT)*</label>
-                                <input type="text" {...register('rut', { required: 'El RUT es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', width: '100%' }} placeholder="Ej: 16718683-1" />
-                                {errors.rut && <small className="input-hint" style={{ color: '#e35c5c' }}>{errors.rut.message}</small>}
+                            <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Fecha*</label>
+                                    <input type="date" {...register("date", { required: "La fecha es obligatoria" })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                    {errors.date && <small style={{ color: '#e35c5c' }}>{errors.date.message || "Campo obligatorio"}</small>}
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Hora*</label>
+                                    <input type="time" {...register("time", { required: "La hora es obligatoria" })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                    {errors.time && <small style={{ color: '#e35c5c' }}>{errors.time.message || "Campo obligatorio"}</small>}
+                                </div>
                             </div>
-
-                            {/* DETALLES DE LA CITA */}
-                            <div style={{ gridColumn: 'span 2', borderTop: '1px solid #eee', paddingTop: '15px' }}>
-                                <h4 style={{ color: '#555', margin: '0 0 10px', borderBottom: '1px solid #eee', paddingBottom: '5px' }}>Detalles de la Cita</h4>
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Motivo/Procedimiento*</label>
+                                <input {...register("procedure", { required: "El motivo es obligatorio" })} placeholder="Motivo de la consulta" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                {errors.procedure && <small style={{ color: '#e35c5c' }}>{errors.procedure.message || "Campo obligatorio"}</small>}
                             </div>
-                            
-                            <div className="field">
-                                <label htmlFor="date">Fecha*</label>
-                                <input type="date" {...register('date', { required: 'Fecha es obligatoria' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', width: '100%' }} defaultValue={new Date().toISOString().substring(0, 10)} />
-                                {errors.date && <small className="input-hint" style={{ color: '#e35c5c' }}>{errors.date.message}</small>}
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Médico Tratante*</label>
+                                <select {...register("medic", { required: "El médico es obligatorio" })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
+                                    <option value="">Seleccione...</option>
+                                    <option value="DR. FACHERO (PRO)">DR. FACHERO (PRO)</option>
+                                    <option value="DRA. JANE SMITH">DRA. JANE SMITH</option>
+                                </select>
+                                {errors.medic && <small style={{ color: '#e35c5c' }}>{errors.medic.message || "Campo obligatorio"}</small>}
                             </div>
-                            <div className="field">
-                                <label htmlFor="time">Hora*</label>
-                                <input type="time" {...register('time', { required: 'Hora es obligatoria' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', width: '100%' }} />
-                                {errors.time && <small className="input-hint" style={{ color: '#e35c5c' }}>{errors.time.message}</small>}
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                                <button type="button" onClick={() => setIsNewAppointmentModalOpen(false)} style={{ background: '#ccc', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
+                                <button type="submit" style={{ background: '#830cc4', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Guardar Cita</button>
                             </div>
-                            
-                            <div className="field" style={{ gridColumn: 'span 2' }}>
-                                <label htmlFor="procedure">Procedimiento/Motivo*</label>
-                                <input type="text" {...register('procedure', { required: 'Procedimiento es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', width: '100%' }} placeholder="Ej: Consulta Médica" />
-                                {errors.procedure && <small className="input-hint" style={{ color: '#e35c5c' }}>{errors.procedure.message}</small>}
-                            </div>
-                            <div className="field" style={{ gridColumn: 'span 2' }}>
-                                <label htmlFor="medic">Médico*</label>
-                                <input type="text" {...register('medic', { required: 'Médico es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', width: '100%' }} placeholder="Ej: RAFAEL BITRAN MOGILEVICH" />
-                                {errors.medic && <small className="input-hint" style={{ color: '#e35c5c' }}>{errors.medic.message}</small>}
-                            </div>
-                            <div className="field" style={{ gridColumn: 'span 2' }}>
-                                <label htmlFor="location">Lugar*</label>
-                                <input type="text" {...register('location', { required: 'Lugar es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', width: '100%' }} placeholder="Ej: Clínica Los Andes" />
-                                {errors.location && <small className="input-hint" style={{ color: '#e35c5c' }}>{errors.location.message}</small>}
-                            </div>
-
-                            <button type="submit" style={{ background: '#830cc4', color: '#fff', padding: '12px', borderRadius: '8px', border: 'none', gridColumn: 'span 2', marginTop: '10px' }}>
-                                Confirmar Cita
-                            </button>
                         </form>
                     </div>
                 </div>
             )}
             
-            {/* --- MODAL DE ERRORES DE VALIDACIÓN (NUEVO POP-UP) --- */}
             {isValidationModalOpen && (
-                <div
-                    className="modal-backdrop"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="validation-modal-title"
-                    onClick={() => setIsValidationModalOpen(false)}
-                >
-                    <div
-                        className="modal-card"
-                        onClick={(e) => e.stopPropagation()}
-                        role="document"
-                    >
-                        <h3 id="validation-modal-title" style={{ color: '#e35c5c' }}>¡Errores de Validación!</h3>
-                        <p className="modal-subtitle">{validationModalTitle}</p>
-                        <ul className="modal-list">
-                            {validationModalLines.map((line, idx) => (
-                                <li key={idx}>{line}</li>
+                <div className="modal-backdrop" onClick={() => setIsValidationModalOpen(false)} style={{ zIndex: 1000 }}>
+                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', width: '90%', textAlign: 'center' }}>
+                        <h2 style={{ color: '#e35c5c', marginTop: 0 }}>¡Atención!</h2>
+                        <p style={{ color: '#e35c5c', fontWeight: 'bold' }}>{memoValidationModalTitle}</p>
+                        <ul style={{ listStyle: 'disc', paddingLeft: '20px', textAlign: 'left', margin: '20px 0' }}>
+                            {validationModalLines.map((line, index) => (
+                                <li key={index} style={{ color: '#333', marginBottom: '5px' }}>{line}</li>
                             ))}
                         </ul>
-                        <div className="modal-actions">
-                            <button
-                                type="button"
-                                onClick={() => setIsValidationModalOpen(false)}
-                                className="btn btn--primary"
-                                style={{ background: '#e35c5c' }}
-                            >
-                                Entendido
-                            </button>
-                        </div>
+                        <button onClick={() => setIsValidationModalOpen(false)} style={{ background: '#830cc4', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Entendido</button>
                     </div>
                 </div>
             )}
 
-
-            {/* --- MODAL 2: CONFIRMACIÓN DE ELIMINACIÓN DE CITA (SIN CAMBIOS) --- */}
             {isDeleteModalOpen && appointmentToDelete && (
-                <div className="modal-backdrop" onClick={() => setIsDeleteModalOpen(false)}>
-                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-                        <h3 style={{ color: '#e35c5c', margin: '0 0 10px' }}>Confirmar Eliminación</h3>
-                        <p style={{ color: '#555', marginBottom: '20px' }}>
-                            ¿Seguro que deseas eliminar la cita de **{appointmentToDelete.patient}** a las **{appointmentToDelete.time}**?
-                        </p>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                            <button
-                                type="button"
-                                onClick={() => setIsDeleteModalOpen(false)}
-                                style={{ background: '#f0f0f0', color: '#4a0376', padding: '10px 14px', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="button"
-                                onClick={confirmDeletion}
-                                style={{ background: '#e35c5c', color: '#fff', padding: '10px 14px', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}
-                            >
-                                Sí, Eliminar Cita
-                            </button>
+                <div className="modal-backdrop" onClick={() => setIsDeleteModalOpen(false)} style={{ zIndex: 1000 }}>
+                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', width: '90%', textAlign: 'center' }}>
+                        <h2 style={{ color: '#e35c5c', marginTop: 0 }}>Confirmar Eliminación</h2>
+                        <p>¿Está seguro de que desea eliminar la cita de **{appointmentToDelete.patient}** a las **{appointmentToDelete.time}**?</p>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '20px' }}>
+                            <button type="button" onClick={() => setIsDeleteModalOpen(false)} style={{ background: '#ccc', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
+                            <button type="button" onClick={confirmDeletion} style={{ background: '#e35c5c', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Eliminar</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* --- MODAL 3: COMPROBANTE DE CITA MÉDICA (SIN CAMBIOS) --- */}
             {isReceiptModalOpen && receiptData && (
-                 <div className="modal-backdrop" onClick={() => setIsReceiptModalOpen(false)}>
-                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', padding: '30px', border: '1px solid #ccc' }}>
-                        <div id="print-area" style={{ color: '#2b2b2b' }}>
-                            <h2 style={{ textAlign: 'center', margin: '0 0 20px', color: '#4a0376' }}>Comprobante de Cita Médica</h2>
-                            <hr style={{ borderTop: '2px solid #333', margin: '15px 0' }} />
-
-                            {/* Información del Paciente */}
-                            <h3 style={{ margin: '15px 0 5px', fontSize: '1.2rem', color: '#2b2b2b' }}>Información del Paciente</h3>
-                            {renderReceiptLine("Nombre", receiptData.patientName)}
-                            {renderReceiptLine("C. Identidad", receiptData.patientId)}
-                            
-                            <hr style={{ borderTop: '1px solid #eee', margin: '20px 0' }} />
-
-                            {/* Información de la Cita */}
-                            <h3 style={{ margin: '15px 0 5px', fontSize: '1.2rem', color: '#2b2b2b' }}>Información de la Cita</h3>
-                            {renderReceiptLine("Médico", receiptData.medic)}
-                            {renderReceiptLine("Procedimiento", receiptData.procedure)}
-                            {renderReceiptLine("Fecha", receiptData.date)}
-                            {renderReceiptLine("Hora", receiptData.time)}
-                            {renderReceiptLine("Lugar", receiptData.location)}
-                            
-                            <hr style={{ borderTop: '2px solid #333', marginTop: '20px' }} />
-
+                <div className="modal-backdrop" onClick={() => setIsReceiptModalOpen(false)} style={{ zIndex: 1000 }}>
+                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px', width: '90%', textAlign: 'center' }}>
+                        <div style={{ border: '2px dashed #830cc4', padding: '20px' }}>
+                            <h2 style={{ color: '#830cc4', margin: '0 0 10px' }}>COMPROBANTE DE CITA</h2>
+                            <p style={{ color: '#555', margin: '0 0 20px', fontSize: '0.9rem' }}>Clínica Dr. Fachero - PRO</p>
+                            <div style={{ textAlign: 'left', marginBottom: '20px' }}>
+                                {renderReceiptLine("Fecha", receiptData.date)}
+                                {renderReceiptLine("Hora", receiptData.time)}
+                                {renderReceiptLine("Paciente", receiptData.patientName)}
+                                {renderReceiptLine("ID/RUT", receiptData.patientId)}
+                                {renderReceiptLine("Motivo", receiptData.procedure)}
+                                {renderReceiptLine("Médico", receiptData.medic)}
+                                {renderReceiptLine("Ubicación", receiptData.location)}
+                            </div>
+                            <p style={{ fontSize: '0.8rem', color: '#830cc4' }}>* Presentar este comprobante al ingresar.</p>
                         </div>
-
-                        {/* Botón de Cierre (Simulación de impresión) */}
-                        <div style={{ textAlign: 'right', marginTop: '20px' }}>
-                             <button
-                                type="button"
-                                onClick={() => { window.print(); setIsReceiptModalOpen(false); }}
-                                style={{ background: '#00b050', color: '#fff', padding: '10px 15px', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}
-                            >
-                                Imprimir Comprobante
-                            </button>
-                        </div>
+                        <button onClick={() => setIsReceiptModalOpen(false)} style={{ background: '#830cc4', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', marginTop: '20px' }}>Cerrar</button>
                     </div>
                 </div>
             )}

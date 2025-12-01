@@ -129,7 +129,7 @@ function App() {
     const title =pageTitles[pagina]|| "Dr. Fachero" ;
     document.title =`${title} - Dr. Fachero`;
 
-    const isDashboardModule = ['pacientes', 'agenda_medica', 'gestion_camas', 'ficha_clinica', 'recetas_medicas', 'dashboard_pro', 'dashboard_estandar'].includes(pagina);
+    const isDashboardModule = ['pacientes', 'agenda_medica', 'recetas_medicas', 'dashboard_pro', 'dashboard_estandar'].includes(pagina);
     
     // Redirección si intenta acceder a un módulo privado sin autenticación
     if (isDashboardModule && !userPlan) {
@@ -142,32 +142,36 @@ function App() {
   // --- LÓGICA DE RUTEO CONDICIONAL ---
   let pageContent;
   const isAuthenticated = !!userPlan; 
+  
+  // Función goBack específica para los módulos internos
+  const getGoBackFunction = (home) => () => setPagina(home);
 
   if (isAuthenticated) {
     // 🚀 RUTEO PARA USUARIOS AUTENTICADOS (Dashboard y Módulos)
     const dashboardHome = userPlan === 'pro' ? 'dashboard_pro' : 'dashboard_estandar';
+    const goBack = getGoBackFunction(dashboardHome);
     
     switch (pagina) {
       case "dashboard_pro":
-        // Aseguramos que setPagina se pasa a DashboardPro
         pageContent = <DashboardPro userName={userName} handleLogout={handleLogout} setPagina={setPagina} />;
         break;
       case "dashboard_estandar":
-        // Aseguramos que setPagina se pasa a DashboardEstandar
         pageContent = <DashboardEstandar userName={userName} handleLogout={handleLogout} setPagina={setPagina} />;
         break;
-      // MÓDULOS DE NAVEGACIÓN INTERNA
+      // MÓDULOS DE NAVEGACIÓN INTERNA: AHORA PASAN setPagina Y handleLogout
       case "pacientes":
-        pageContent = <Pacientes goBack={() => setPagina(dashboardHome)} />;
+        pageContent = <Pacientes goBack={goBack} setPagina={setPagina} handleLogout={handleLogout} />;
         break;
       case "agenda_medica":
-        pageContent = <AgendaMedica goBack={() => setPagina(dashboardHome)} />;
+        // Pasa goBack y setPagina al módulo
+        pageContent = <AgendaMedica goBack={goBack} setPagina={setPagina} handleLogout={handleLogout} />;
         break;
       case "recetas_medicas":
-        pageContent = <RecetasMedicas goBack={() => setPagina(dashboardHome)} />;
+        // Pasa goBack y setPagina al módulo
+        pageContent = <RecetasMedicas goBack={goBack} setPagina={setPagina} handleLogout={handleLogout} />;
         break;
       default:
-        // Por defecto, muestra el dashboard según el plan, con setPagina
+        // Por defecto, muestra el dashboard según el plan
         pageContent = userPlan === "pro" 
           ? <DashboardPro userName={userName} handleLogout={handleLogout} setPagina={setPagina} /> 
           : <DashboardEstandar userName={userName} handleLogout={handleLogout} setPagina={setPagina} />;
