@@ -21,12 +21,10 @@ import DashboardPro from "./pages/DashboardPro.jsx";
 // --- Importación de Módulos del Dashboard ---
 import Pacientes from "./pages/Pacientes.jsx";
 import AgendaMedica from "./pages/AgendaMedica.jsx";
-import GestionCamas from "./pages/GestionCamas.jsx";
-import FichaClinica from "./pages/FichaClinica.jsx";
 import RecetasMedicas from "./pages/RecetasMedicas.jsx";
 
 
-const pageToPath ={
+const pageTitles ={
   inicio:"Inicio",
   funcionalidades:"Funcionalidades",
   porque:"¿Por qué?",
@@ -39,54 +37,48 @@ const pageToPath ={
   dashboard_pro:"Centro de Gestion",
   pacientes: "Pacientes",
   agenda_medica: "Agenda Médica",
-  gestion_camas: "Gestión de Camas",
-  ficha_clinica: "Ficha Clínica",
   recetas_medicas: "Recetas Médicas",
 };
-const pathToPage = Object.fromEntries(
-  Object.entries(pageToPath).map(([key, value]) => [value, key])
-);
-const getPageFromPath = (userPlan) => {
-  const defaultPage = userPlan ? `dashboard_${userPlan}` : "inicio";
-  // Obtiene el pathname de la URL, ajustando la ruta raíz (/) a 'inicio'
-  const currentPath = window.location.pathname === '/' 
-    ? '/' 
-    : `/${window.location.pathname.split('/').filter(Boolean).pop()}`;
 
-  const pageKey = pathToPage[currentPath] || pathToPage[`/${currentPath}`];
+// Obtiene la página del hash URL, por defecto 'inicio'
+function getPageFromHash(userPlan){
+  // Si el usuario tiene plan, la página por defecto es su dashboard
+  const defaultPage = userPlan ? `dashboard_${userPlan}` : "inicio"; 
+  const hash = window.location.hash.substring(1).toLowerCase();
   
-  if (pageKey && Object.keys(pageToPath).includes(pageKey)) {
-    return pageKey;
+  if (hash && Object.keys(pageTitles).includes(hash)) {
+    return hash;
   }
 
-  // Si no hay path válido, intenta con la página guardada en localStorage
   const storedPage = localStorage.getItem("pagina_activa");
-  if (storedPage && Object.keys(pageToPath).includes(storedPage)) {
+  if (storedPage && Object.keys(pageTitles).includes(storedPage)) {
       return storedPage;
   }
 
   return defaultPage;
-};
+}
+
 
 function App() {
+  // CORRECCIÓN CLAVE: Inicialización de estado con OR (|| '') para evitar nulos.
   const [userPlan, setUserPlan] = useState(
-    () => localStorage.getItem("user_plan") || null
+    () => localStorage.getItem("userPlan") || '' 
   );
   const [userName, setUserName] = useState(
-    () => localStorage.getItem("user_name") || null
+    () => localStorage.getItem("userName") || ''
   );
 
   const [pagina, setPaginaState] = useState(
-    () => getPageFromPath(userPlan)
+    () => getPageFromHash(userPlan)
   );
 
   // Función central para actualizar el estado de la página y el hash URL
   const setPagina = (pageKey, shouldReplace = false) => {
-    const path = pageToPath[pageKey] || "/";
+    const hash = `#${pageKey}`;
     if (shouldReplace) {
-      window.history.replaceState(null, "", path);
+      window.history.replaceState(null, "", hash);
     } else {
-      window.history.pushState(null, "", path);
+      window.history.pushState(null, "", hash);
     }
     setPaginaState(pageKey);
     
@@ -99,11 +91,11 @@ function App() {
   };
 
 
-
+  // Maneja el Login (recibe el plan: 'pro' o 'estandar')
   const handleLogin = (name, plan) => {
     setUserPlan(plan);
     setUserName(name);
-    // CORRECCIÓN: Usamos claves consistentes (camelCase)
+    // Guarda SIEMPRE con las mismas claves
     localStorage.setItem("userPlan", plan);
     localStorage.setItem("userName", name);
     setPagina(plan === 'pro' ? 'dashboard_pro' : 'dashboard_estandar');
@@ -113,7 +105,7 @@ function App() {
   const handleLogout = () => {
     setUserPlan('');
     setUserName('');
-    // CORRECCIÓN: Usamos claves consistentes (camelCase)
+    // Limpia las claves
     localStorage.removeItem("userPlan");
     localStorage.removeItem("userName");
     localStorage.removeItem("pagina_activa");
@@ -123,18 +115,18 @@ function App() {
   // 1. Maneja la navegación del navegador (botón atrás/adelante)
   useEffect(() => {
     const handleHashChange = () => {
-      setPaginaState(getPageFromPath(userPlan)); // Usamos userPlan en la llamada
+      setPaginaState(getPageFromHash(userPlan)); 
       window.scrollTo({top: 0,behavior:"instant"});
     };
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [userPlan]); // userPlan ahora es una dependencia para actualizar getPageFromHash si el plan cambia.
+  }, [userPlan]);
   
   
   // 2. Establece el título y maneja redirecciones forzadas
   useEffect(() => {
-    const title =pageToPath[pagina]|| "Dr. Fachero" ;
+    const title =pageTitles[pagina]|| "Dr. Fachero" ;
     document.title =`${title} - Dr. Fachero`;
 
     const isDashboardModule = ['pacientes', 'agenda_medica', 'gestion_camas', 'ficha_clinica', 'recetas_medicas', 'dashboard_pro', 'dashboard_estandar'].includes(pagina);
@@ -157,11 +149,11 @@ function App() {
     
     switch (pagina) {
       case "dashboard_pro":
-        // CORRECCIÓN: Pasamos setPagina
+        // Aseguramos que setPagina se pasa a DashboardPro
         pageContent = <DashboardPro userName={userName} handleLogout={handleLogout} setPagina={setPagina} />;
         break;
       case "dashboard_estandar":
-        // CORRECCIÓN: Pasamos setPagina
+        // Aseguramos que setPagina se pasa a DashboardEstandar
         pageContent = <DashboardEstandar userName={userName} handleLogout={handleLogout} setPagina={setPagina} />;
         break;
       // MÓDULOS DE NAVEGACIÓN INTERNA
@@ -171,17 +163,11 @@ function App() {
       case "agenda_medica":
         pageContent = <AgendaMedica goBack={() => setPagina(dashboardHome)} />;
         break;
-      case "gestion_camas":
-        pageContent = <GestionCamas goBack={() => setPagina(dashboardHome)} />;
-        break;
-      case "ficha_clinica":
-        pageContent = <FichaClinica goBack={() => setPagina(dashboardHome)} />;
-        break;
       case "recetas_medicas":
         pageContent = <RecetasMedicas goBack={() => setPagina(dashboardHome)} />;
         break;
       default:
-        // Por defecto, muestra el dashboard según el plan
+        // Por defecto, muestra el dashboard según el plan, con setPagina
         pageContent = userPlan === "pro" 
           ? <DashboardPro userName={userName} handleLogout={handleLogout} setPagina={setPagina} /> 
           : <DashboardEstandar userName={userName} handleLogout={handleLogout} setPagina={setPagina} />;
@@ -218,19 +204,21 @@ function App() {
   }
 
   // Oculta Navbar y Footer en rutas de autenticación y privadas
-  const showPublicNavAndFooter = !isAuthenticated && pagina !== "login" && pagina !== "recuperacion";
+const showNavbar = !isAuthenticated && pagina !== "login" && pagina !== "recuperacion";
+  const showFooter = !isAuthenticated && pagina !== "recuperacion"; 
+
+  // Ajusta el margen superior e ignora el contenedor si es una página full-bleed
+  const isFullBleedPage = isAuthenticated || pagina === 'login' || pagina === 'recuperacion';
 
   return (
     <>
-      {showPublicNavAndFooter && <Navbar pagina={pagina} setPagina={setPagina} userPlan={userPlan} />}
-      <main style={isAuthenticated ? {} : { marginTop: 60 }}> 
-        <div className={!isAuthenticated ? "container" : ""}>
-            {pageContent}
-        </div>
+      {showNavbar && <Navbar pagina={pagina} setPagina={setPagina} userPlan={userPlan} />}
+      <main style={isFullBleedPage ? { marginTop: 0, maxWidth: '100%', padding: 0 } : { marginTop: 60 }}> 
+        {/* Eliminamos el div.container condicional para que el Login full-bleed funcione */}
+        {pageContent}
       </main>
-      {showPublicNavAndFooter && <Footer pagina={pagina} setPagina={setPagina} />}
+      {showFooter && <Footer pagina={pagina} setPagina={setPagina} />}
     </>
   );
 }
-
 export default App;

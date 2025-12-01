@@ -1,161 +1,164 @@
 // src/pages/Recuperacion.jsx
 import { useForm } from "react-hook-form";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 
-// Componente simulado para la recuperación de contraseña
+// Componente Mock Logo/Icon para mantener la consistencia visual
+const MockLogo = ({ style }) => (
+    <div style={{ 
+        ...style, 
+        backgroundColor: '#f3e8ff', 
+        borderRadius: '50%', 
+        width: '60px', 
+        height: '60px', 
+        margin: '0 auto 15px', 
+        display: 'grid', 
+        placeItems: 'center',
+        fontSize: '30px',
+        color: '#830cc4'
+    }}>
+        🔑
+    </div>
+);
+
 export default function Recuperacion({ setPagina }) {
-  const [success, setSuccess] = useState(false);
-  const [isSimulating, setIsSimulating] = useState(false);
-  
-  // --- Estados del Modal de Validación ---
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalLines, setModalLines] = useState([]);
+    const [isRecoverySent, setIsRecoverySent] = useState(false);
 
+    const {
+        register,
+        handleSubmit,
+        formState: { errors, isSubmitting },
+    } = useForm();
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { isSubmitting, errors },
-  } = useForm();
-
-  const nuevaContrasena = watch("nuevaContrasena");
-
-  const onValid = async (data) => {
-    setIsSimulating(true);
-    // Simulación de proceso de actualización de contraseña
-    await new Promise((r) => setTimeout(r, 1500));
-    setIsSimulating(false);
-    setSuccess(true);
-  };
-
-  // --- LÓGICA DE MANEJO DE ERRORES DE VALIDACIÓN ---
-  const onInvalid = (errs) => {
-    const order = [
-        "nuevaContrasena",
-        "confirmarContrasena",
-    ];
-    const labels = {
-        nuevaContrasena: "Nueva Contraseña",
-        confirmarContrasena: "Confirmación",
+    const onValid = async (data) => {
+        // Simulación de envío de correo (espera 1.5s)
+        await new Promise((r) => setTimeout(r, 1500)); 
+        
+        // Aquí iría la lógica de API para enviar el enlace de recuperación.
+        console.log(`Solicitud de recuperación para: ${data.email}`);
+        
+        setIsRecoverySent(true);
     };
 
-    const lines = order
-      .filter((k) => errs[k])
-      .map((k) => `• ${labels[k]}: ${errs[k]?.message ?? "Dato inválido"}`);
-      
-    setModalLines(lines.length ? lines : ["• Verifica los datos ingresados."]);
-    setModalOpen(true);
-  };
-  
-  const modalTitle = useMemo(() => {
-    const count = modalLines.length;
-    return count > 1 ? "Verifique los datos:" : "Verifique el dato:";
-  }, [modalLines]);
+    // Estilo de fondo degradado morado y blanco, cubriendo toda la pantalla
+    const fullBleedStyle = {
+        background: 'linear-gradient(to bottom, #830cc4 0%, #830cc4 50%, #fff 50%, #fff 100%)', 
+        minHeight: '100vh', 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        padding: '72px 0 104px', 
+        // Usado para asegurar que ocupe todo el ancho, ignorando el contenedor de App.jsx
+        marginLeft: '-50vw', 
+        marginRight: '-50vw',
+        width: '100vw', 
+        position: 'relative', 
+        left: '50%', 
+        right: '50%',
+        boxSizing: 'border-box'
+    };
 
-  return (
-    <section className="login-page" style={{paddingTop: '100px'}}>
-      <div className="login-card">
-        <h1>Nueva Contraseña</h1>
-        <p>Establece tu nueva clave de acceso de forma segura.</p>
+    const cardStyle = {
+        maxWidth: '400px', 
+        width: '100%', 
+        padding: '40px', 
+        background: '#fff', 
+        borderRadius: '12px', 
+        boxShadow: '0 8px 30px rgba(0,0,0,0.1)'
+    };
 
-        {success ? (
-          <div style={{ padding: '20px', backgroundColor: '#f0f9eb', border: '1px solid #c8e6c9', borderRadius: '12px' }}>
-            <h3 style={{ color: '#00b050', marginBottom: '10px' }}>¡Contraseña Actualizada!</h3>
-            <p>Tu contraseña ha sido restablecida exitosamente. Ahora puedes ingresar con tu nueva clave.</p>
-            <button 
-              type="button" 
-              className="btn-cta btn-cta--primary"
-              onClick={() => setPagina("login")} 
-              style={{ marginTop: '20px', background: 'var(--color-primary-strong)' }}
-            >
-              Ir a Iniciar Sesión
-            </button>
-          </div>
-        ) : (
-          // MODIFICADO: Agregamos onInvalid a handleSubmit
-          <form onSubmit={handleSubmit(onValid, onInvalid)}>
-            {/* Campo Nueva Contraseña */}
-            <div className="field">
-              <label htmlFor="nuevaContrasena">Nueva Contraseña*</label>
-              <input
-                id="nuevaContrasena"
-                type="password"
-                aria-required="true"
-                {...register("nuevaContrasena", {
-                  required: "La contraseña es obligatoria.",
-                  minLength: {
-                    value: 6,
-                    message: "Mínimo 6 caracteres.",
-                  },
-                })}
-                // Eliminamos la clase input-error y el hint inline
-                className={errors.nuevaContrasena ? "input-error" : ""} 
-                disabled={isSimulating}
-              />
-              {/* Ocultamos el error inline para usar solo el modal */}
+    // Estilos reutilizables para los botones
+    const buttonStyle = {
+        width: '100%', 
+        padding: '12px', 
+        background: '#830cc4', 
+        color: '#fff', 
+        border: 'none', 
+        borderRadius: '6px', 
+        cursor: 'pointer', 
+        fontWeight: 'bold',
+        transition: 'background 0.3s', 
+        marginTop: '20px'
+    };
+    
+    return (
+        <section style={fullBleedStyle}>
+            <div style={cardStyle}>
+                
+                <MockLogo />
+                
+                {isRecoverySent ? (
+                    // PANTALLA DE ÉXITO
+                    <div style={{ textAlign: 'center' }}>
+                        <h1 style={{ color: '#830cc4', margin: '10px 0 0' }}>¡Correo Enviado!</h1>
+                        <p>Hemos enviado instrucciones para restablecer tu contraseña a tu dirección de correo electrónico. Por favor, revisa tu bandeja de entrada (y la carpeta de spam).</p>
+                        <button 
+                            type="button"
+                            onClick={() => setPagina('login')}
+                            style={buttonStyle}
+                        >
+                            Volver al Login
+                        </button>
+                    </div>
+
+                ) : (
+                    // FORMULARIO DE RECUPERACIÓN
+                    <>
+                        <h1 style={{ color: '#830cc4', margin: '10px 0 0', textAlign: 'center' }}>Recuperar Contraseña</h1>
+                        <p style={{ textAlign: 'center' }}>Ingresa tu correo electrónico para recibir un enlace de restablecimiento.</p>
+                        
+                        <form onSubmit={handleSubmit(onValid)}>
+                            {/* Campo Email */}
+                            <div className="field" style={{ marginBottom: '20px' }}>
+                                <label htmlFor="email" style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#555' }}>Correo Electrónico</label>
+                                <input
+                                    id="email"
+                                    type="email"
+                                    autoComplete="email"
+                                    aria-invalid={!!errors.email} 
+                                    {...register("email", {
+                                        required: "El correo es Obligatorio",
+                                        pattern: {
+                                            value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                                            message: "Correo inválido",
+                                        },
+                                    })}
+                                    className={errors.email ? "input-error" : ""}
+                                    disabled={isSubmitting}
+                                    placeholder="tu@correo.com"
+                                    style={{ 
+                                        width: '100%', padding: '12px', border: `1px solid ${errors.email ? '#e35c5c' : '#ddd'}`, 
+                                        borderRadius: '6px', boxSizing: 'border-box' 
+                                    }}
+                                />
+                                {errors.email && (
+                                    <small className="input-hint" style={{ color: '#e35c5c', display: 'block', marginTop: '5px' }}>{errors.email.message}</small>
+                                )}
+                            </div>
+                            
+                            <button 
+                                type="submit" 
+                                disabled={isSubmitting} 
+                                style={buttonStyle}
+                            >
+                                {isSubmitting ? "Enviando..." : "Enviar Enlace de Recuperación"}
+                            </button>
+                        </form>
+
+                        <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '0.9rem' }}>
+                            <button 
+                                type="button"
+                                onClick={() => setPagina("login")}
+                                style={{ 
+                                    background: 'none', border: 'none', color: '#830cc4', textDecoration: 'none', 
+                                    cursor: 'pointer', padding: 0, fontSize: 'inherit' 
+                                }}
+                            >
+                                Volver a Iniciar Sesión
+                            </button>
+                        </p>
+                    </>
+                )}
             </div>
-
-            {/* Campo Confirmar Contraseña */}
-            <div className="field">
-              <label htmlFor="confirmarContrasena">Confirmar Contraseña*</label>
-              <input
-                id="confirmarContrasena"
-                type="password"
-                aria-required="true"
-                {...register("confirmarContrasena", {
-                  required: "Confirma la contraseña.",
-                  validate: (value) =>
-                    value === nuevaContrasena || "Las contraseñas no coinciden.",
-                })}
-                // Eliminamos la clase input-error y el hint inline
-                className={errors.confirmarContrasena ? "input-error" : ""} 
-                disabled={isSimulating}
-              />
-              {/* Ocultamos el error inline para usar solo el modal */}
-            </div>
-
-            <button type="submit" disabled={isSimulating}>
-              {isSimulating ? "Actualizando..." : "Establecer Nueva Contraseña"}
-            </button>
-          </form>
-        )}
-      </div>
-
-      {/* --- MODAL DE ERRORES DE VALIDACIÓN --- */}
-      {modalOpen && (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-title"
-          onClick={() => setModalOpen(false)}
-        >
-          <div
-            className="modal-card"
-            onClick={(e) => e.stopPropagation()}
-            role="document"
-          >
-            <h3 id="modal-title">¡Error de Validación!</h3>
-            <p className="modal-subtitle">{modalTitle}</p>
-            <ul className="modal-list">
-              {modalLines.map((line, idx) => (
-                <li key={idx}>{line}</li>
-              ))}
-            </ul>
-            <div className="modal-actions">
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="btn btn--primary"
-                style={{ background: '#e35c5c' }} // Rojo para errores
-              >
-                Entendido
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </section>
-  );
+        </section>
+    );
 }

@@ -61,7 +61,6 @@ const MockCitas = () => (
             <li><span style={{ color: '#e35c5c', fontWeight: 800 }}>●</span> Canceladas</li>
         </ul>
         <div style={{ marginTop: '20px', fontSize: '12px' }}>
-            <p>Última actualización: 24 Nov 2025</p>
         </div>
     </div>
 );
@@ -100,12 +99,6 @@ export default function DashboardPro({ userName, handleLogout, setPagina }) { //
               <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('agenda_medica')}>Agenda médica</button>
           </li>
           <li style={topMenuItemStyle}>
-              <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('gestion_camas')}>Gestión de camas</button>
-          </li>
-          <li style={topMenuItemStyle}>
-              <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('ficha_clinica')}>Ficha clínica</button>
-          </li>
-          <li style={topMenuItemStyle}>
               <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('recetas_medicas')}>Recetas médicas</button>
           </li>
         </ul>
@@ -135,19 +128,9 @@ export default function DashboardPro({ userName, handleLogout, setPagina }) { //
           
           {/* COLUMNA 1: Gráfico de Barras */}
           <div style={{ gridColumn: 'span 2' }}><BarChart /></div> 
-          
-          {/* COLUMNA 2: Estado de Citas */}
-          <MockCitas />
+
 
           {/* COLUMNA 3: Gestión de Camas (Mockup Visual) */}
-          <div style={cardStyle}>
-              <h4 style={{ color: '#4a0376', margin: '0 0 10px' }}>Gestión de Camas</h4>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
-                  <span style={{ fontSize: '1.8rem', color: '#830cc4' }}>2/7</span>
-                  <span style={{ color: '#e35c5c', fontWeight: 'bold' }}>2 Ocupadas</span>
-              </div>
-              <p style={{ marginTop: '20px', color: '#555', fontSize: '14px' }}>Camas Ocupadas: 01, 03</p>
-          </div>
         </div>
         
         {/* GRUPO DE MÓDULOS INTERMEDIOS (3 COLUMNAS: Calendario | Agenda | Ficha) */}
@@ -157,24 +140,10 @@ export default function DashboardPro({ userName, handleLogout, setPagina }) { //
             <div style={{ gridColumn: 'span 1' }}><CalendarModule /></div>
 
             {/* MÓDULO 5: Agenda Médica (Mockup Visual) */}
-            <div style={cardStyle}>
-                <h4 style={{ color: '#4a0376', margin: '0 0 10px' }}>Próximas Citas</h4>
-                <div style={{ marginTop: '15px', color: '#2b2b2b', fontWeight: 'bold' }}>Nidia Valdés</div>
-                <p style={{ color: '#555', fontSize: '14px' }}>Mié 22 | 13:00 hrs</p>
-                <div style={{ marginTop: '15px', color: '#2b2b2b', fontWeight: 'bold' }}>A. Morales</div>
-                <p style={{ color: '#555', fontSize: '14px' }}>Mié 22 | 14:00 hrs</p>
-            </div>
+
             
             {/* MÓDULO 6: Ficha Clínica (Mockup Visual) */}
-            <div style={cardStyle}>
-                <h4 style={{ color: '#4a0376', margin: '0 0 10px' }}>Ficha Clínica</h4>
-                <p style={{ color: '#555' }}>Acceso rápido a los últimos expedientes.</p>
-                <ul style={{ listStyle: 'disc', paddingLeft: '20px', fontSize: '14px', color: '#830cc4', marginTop: '15px' }}>
-                    <li><a href="#" style={{ color: 'inherit', textDecoration: 'none' }}>Martínez, P.</a></li>
-                    <li><a href="#" style={{ color: 'inherit', textDecoration: 'none' }}>Gómez, J.</a></li>
-                    <li><a href="#" style={{ color: 'inherit', textDecoration: 'none' }}>Rojas, L.</a></li>
-                </ul>
-            </div>
+
         </div>
 
         {/* SECCIÓN INFERIOR: Gestión de Usuarios (Nuevo, Full Width) */}
