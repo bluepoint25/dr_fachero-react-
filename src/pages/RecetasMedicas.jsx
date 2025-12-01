@@ -71,6 +71,9 @@ export default function RecetasMedicas({ goBack }) {
     const [recipeToPrint, setRecipeToPrint] = useState(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); 
     const [recipeToDelete, setRecipeToDelete] = useState(null); 
+    
+    // ESTADO: Modal de éxito después de crear receta
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
@@ -94,10 +97,23 @@ export default function RecetasMedicas({ goBack }) {
             ...data,
         };
         setRecipes([...recipes, newRecipe]);
+        
+        // Cierra el modal de formulario y limpia
         setIsNewRecipeModalOpen(false);
         reset();
+        
+        // CORRECCIÓN CLAVE: Abrir el modal de éxito con un ligero retraso (ej. 100ms) 
+        // para asegurar que el modal del formulario se desmonte correctamente.
+        setTimeout(() => {
+            setIsSuccessModalOpen(true); 
+        }, 100);
     };
 
+    // FUNCIÓN: Cierra el modal de éxito
+    const closeSuccessModal = () => {
+        setIsSuccessModalOpen(false);
+    };
+    
     // Abre modal de impresión
     const printRecipe = (recipe) => {
         setRecipeToPrint(recipe);
@@ -374,6 +390,43 @@ export default function RecetasMedicas({ goBack }) {
                                 style={{ background: '#e35c5c', color: '#fff', padding: '10px 14px', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}
                             >
                                 Sí, Eliminar Receta
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* --- MODAL 4: CONFIRMACIÓN DE ÉXITO DE RECETA --- */}
+            {isSuccessModalOpen && (
+                <div 
+                    className="modal-backdrop" 
+                    role="dialog" 
+                    aria-modal="true" 
+                    aria-labelledby="success-modal-title"
+                    onClick={closeSuccessModal}
+                >
+                    <div
+                        className="modal-card"
+                        onClick={(e) => e.stopPropagation()}
+                        role="document"
+                        style={{ maxWidth: '400px', textAlign: 'center' }}
+                    >
+                        <h3 id="success-modal-title" style={{ color: '#00b050', margin: '0 0 10px' }}>
+                            ¡Receta Creada con Éxito!
+                        </h3>
+                        <p style={{ color: '#555', marginBottom: '20px' }}>
+                            La prescripción ha sido guardada en el sistema. Ahora puedes imprimirla.
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                            <button
+                                type="button"
+                                onClick={closeSuccessModal}
+                                style={{ 
+                                    background: '#00b050', color: '#fff', padding: '10px 14px', border: 'none', 
+                                    borderRadius: '10px', fontWeight: '700', cursor: 'pointer'
+                                }}
+                            >
+                                Entendido
                             </button>
                         </div>
                     </div>

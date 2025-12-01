@@ -36,13 +36,21 @@ export default function Pacientes({ goBack }) {
     const [patients, setPatients] = useState(initialPatients);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingPatient, setEditingPatient] = useState(null); 
+    
+    // RENOMBRADO: Usamos 'currentFormPatient' para el estado del paciente en el formulario (Add/Edit)
+    const [currentFormPatient, setCurrentFormPatient] = useState(null); 
     
     // --- ESTADOS PARA MODALES ---
     const [modalErrorOpen, setModalErrorOpen] = useState(false);
     const [modalLines, setModalLines] = useState([]);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); // NUEVO
-    const [patientToDelete, setPatientToDelete] = useState(null); // NUEVO
+    
+    // ESTADOS PARA ELIMINACIÓN
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); 
+    const [patientToDelete, setPatientToDelete] = useState(null); 
+    
+    // NUEVOS ESTADOS PARA CONFIRMACIÓN DE EDICIÓN
+    const [isEditConfirmModalOpen, setIsEditConfirmModalOpen] = useState(false);
+    const [patientToEdit, setPatientToEdit] = useState(null);
 
 
     const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
@@ -52,9 +60,9 @@ export default function Pacientes({ goBack }) {
         p.rut.includes(searchTerm)
     );
 
-    // CRUD - Abrir Modal de Formulario
-    const openModal = (patient = null) => {
-        setEditingPatient(patient);
+    // CRUD - Abrir Modal de Formulario (función interna para el formulario)
+    const openFormModal = (patient = null) => {
+        setCurrentFormPatient(patient); // Usamos un nombre más descriptivo para el estado del formulario
         setIsModalOpen(true);
         setModalErrorOpen(false); 
 
@@ -73,9 +81,9 @@ export default function Pacientes({ goBack }) {
 
     // CRUD - Enviar formulario (datos válidos)
     const onSubmit = (data) => {
-        if (editingPatient) {
+        if (currentFormPatient) {
             setPatients(patients.map(p => 
-                p.id === editingPatient.id ? { ...p, ...data } : p
+                p.id === currentFormPatient.id ? { ...p, ...data } : p
             ));
         } else {
             const newPatient = {
@@ -115,7 +123,22 @@ export default function Pacientes({ goBack }) {
         return count > 1 ? "Verifique los datos:" : "Verifique el dato:";
     }, [modalLines]);
 
-    // MODIFICADO: Abre el modal de confirmación de eliminación
+    // NUEVO: Abre el modal de confirmación de edición
+    const openEditConfirmation = (patient) => {
+        setPatientToEdit(patient);
+        setIsEditConfirmModalOpen(true);
+    };
+
+    // NUEVO: Confirma la acción de edición (abre el formulario)
+    const confirmEditAction = () => {
+        if (patientToEdit) {
+            openFormModal(patientToEdit);
+            setPatientToEdit(null); // Limpiar el estado de edición pendiente
+            setIsEditConfirmModalOpen(false);
+        }
+    };
+
+    // Abre el modal de confirmación de eliminación
     const deletePatient = (id) => {
         const patient = patients.find(p => p.id === id);
         if (patient) {
@@ -124,7 +147,7 @@ export default function Pacientes({ goBack }) {
         }
     };
     
-    // NUEVO: Ejecuta la eliminación después de la confirmación
+    // Ejecuta la eliminación después de la confirmación
     const confirmDeletion = () => {
         if (patientToDelete) {
             setPatients(patients.filter(p => p.id !== patientToDelete.id));
@@ -173,7 +196,7 @@ export default function Pacientes({ goBack }) {
                             style={{ padding: '10px', width: '40%', borderRadius: '8px', border: '1px solid #ccc' }}
                         />
                         <button 
-                            onClick={() => openModal(null)}
+                            onClick={() => openFormModal(null)} // Llama a la función para AÑADIR
                             style={{ 
                                 background: '#00b050', color: '#fff', padding: '10px 15px', border: 'none', 
                                 borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' 
@@ -205,7 +228,7 @@ export default function Pacientes({ goBack }) {
                                     </td>
                                     <td style={{ padding: '15px 10px', textAlign: 'center' }}>
                                         <button 
-                                            onClick={() => openModal(patient)} 
+                                            onClick={() => openEditConfirmation(patient)} // CAMBIO: Usamos la nueva función con confirmación
                                             style={{ background: '#830cc4', color: '#fff', padding: '8px', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '5px' }}
                                         >
                                             Editar
@@ -235,7 +258,7 @@ export default function Pacientes({ goBack }) {
                 <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}>
                     {/* MODAL DE FORMULARIO */}
                     <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: 'min(550px, 90vw)' }}>
-                        <h3 style={{ color: '#4a0376' }}>{editingPatient ? 'Modificar Paciente' : 'Agregar Nuevo Paciente'}</h3>
+                        <h3 style={{ color: '#4a0376' }}>{currentFormPatient ? 'Modificar Paciente' : 'Agregar Nuevo Paciente'}</h3> 
                         <form onSubmit={handleSubmit(onSubmit, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             
                             <div className="field">
@@ -319,7 +342,7 @@ export default function Pacientes({ goBack }) {
                                 className="btn btn--primary" 
                                 style={{ background: '#830cc4', marginTop: '15px' }}
                             >
-                                {editingPatient ? 'Guardar Cambios' : 'Registrar Paciente'}
+                                {currentFormPatient ? 'Guardar Cambios' : 'Registrar Paciente'}
                             </button>
                         </form>
                     </div>
@@ -361,6 +384,54 @@ export default function Pacientes({ goBack }) {
                 </div>
               )}
 
+            {/* --- NUEVO MODAL: CONFIRMACIÓN DE EDICIÓN --- */}
+            {isEditConfirmModalOpen && patientToEdit && (
+                <div
+                    className="modal-backdrop"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="edit-modal-title"
+                    onClick={() => setIsEditConfirmModalOpen(false)}
+                >
+                    <div
+                        className="modal-card"
+                        onClick={(e) => e.stopPropagation()}
+                        role="document"
+                        style={{ maxWidth: '400px' }}
+                    >
+                        <h3 id="edit-modal-title" style={{ color: '#4a0376', margin: '0 0 10px' }}>
+                            Confirmar Edición
+                        </h3>
+                        <p style={{ color: '#555', marginBottom: '20px' }}>
+                            ¿Deseas modificar la ficha de **{patientToEdit.name}**?
+                            Esto abrirá el formulario de edición con sus datos actuales.
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <button
+                                type="button"
+                                onClick={() => setIsEditConfirmModalOpen(false)}
+                                style={{ 
+                                    background: '#f0f0f0', color: '#4a0376', padding: '10px 14px', border: 'none', 
+                                    borderRadius: '10px', fontWeight: '700', cursor: 'pointer'
+                                }}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmEditAction}
+                                style={{ 
+                                    background: '#830cc4', color: '#fff', padding: '10px 14px', border: 'none', 
+                                    borderRadius: '10px', fontWeight: '700', cursor: 'pointer'
+                                }}
+                            >
+                                Sí, Editar Ficha
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
             {/* --- MODAL DE CONFIRMACIÓN DE ELIMINACIÓN --- */}
             {isDeleteModalOpen && patientToDelete && (
                 <div

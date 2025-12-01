@@ -1,5 +1,5 @@
-// base temporal
-import React, { useState } from 'react';
+// src/components/UserManagement.jsx
+import React, { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 
 // Mock de usuarios iniciales
@@ -13,12 +13,24 @@ export default function UserManagement() {
   const [users, setUsers] = useState(initialUsers);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null); 
+  
+  // ESTADOS DE VALIDACIÓN
+  const [modalErrorOpen, setModalErrorOpen] = useState(false);
+  const [modalLines, setModalLines] = useState([]);
+  
+  // NUEVOS ESTADOS DE ELIMINACIÓN
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); 
+  const [userToDelete, setUserToDelete] = useState(null); 
+  
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
 
   // Abrir modal (con o sin datos de usuario)
   const openModal = (user = null) => {
     setEditingUser(user);
     setIsModalOpen(true);
+    setModalErrorOpen(false); 
+    setModalLines([]);
+
     if (user) {
       setValue('name', user.name);
       setValue('email', user.email);
@@ -28,15 +40,13 @@ export default function UserManagement() {
     }
   };
 
-  // Manejar el envío del formulario (Agregar/Modificar)
+  // Manejar el envío del formulario (Agregar/Modificar) - Datos Válidos
   const onSubmit = (data) => {
     if (editingUser) {
-      // Modificar
       setUsers(users.map(u => 
         u.id === editingUser.id ? { ...u, ...data } : u
       ));
     } else {
-      // Agregar
       const newUser = {
         id: Date.now(),
         ...data,
@@ -47,11 +57,41 @@ export default function UserManagement() {
     setIsModalOpen(false);
     reset();
   };
+  
+  // Manejar la lógica de validación (Datos Inválidos)
+  const onInvalid = (errs) => {
+    const order = ["name", "email", "role"];
+    const labels = {
+      name: "Nombre Completo",
+      email: "Correo",
+      role: "Rol",
+    };
 
-  // Eliminar usuario
-  const deleteUser = (id) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar a este usuario?')) {
-      setUsers(users.filter(user => user.id !== id));
+    const lines = order
+      .filter((k) => errs[k])
+      .map((k) => `• ${labels[k]}: ${errs[k]?.message ?? "Dato inválido"}`);
+      
+    setModalLines(lines.length ? lines : ["• Verifica los datos ingresados."]);
+    setModalErrorOpen(true);
+  };
+  
+  const modalTitle = useMemo(() => {
+      const count = modalLines.length;
+      return count > 1 ? "Verifique los datos:" : "Verifique el dato:";
+  }, [modalLines]);
+  
+  // FUNCIÓN MODIFICADA: Abre el modal de confirmación de eliminación
+  const deleteUser = (user) => {
+    setUserToDelete(user);
+    setIsDeleteModalOpen(true);
+  };
+  
+  // NUEVA FUNCIÓN: Ejecuta la eliminación después de la confirmación
+  const confirmDeletion = () => {
+    if (userToDelete) {
+        setUsers(users.filter(u => u.id !== userToDelete.id));
+        setUserToDelete(null);
+        setIsDeleteModalOpen(false);
     }
   };
 
@@ -93,7 +133,7 @@ export default function UserManagement() {
                   Modificar
                 </button>
                 <button 
-                  onClick={() => deleteUser(user.id)} 
+                  onClick={() => deleteUser(user)} // CAMBIO: Llama a la nueva función
                   style={{ background: '#e35c5c', color: '#fff', padding: '5px 10px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
                 >
                   Eliminar
@@ -106,10 +146,10 @@ export default function UserManagement() {
 
       {/* Modal para Agregar/Modificar Usuario */}
       {isModalOpen && (
-        <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}>
+        <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}> 
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: 'min(450px, 90vw)' }}>
             <h3 id="user-modal-title" style={{ color: '#4a0376' }}>{editingUser ? 'Modificar Usuario' : 'Agregar Nuevo Usuario'}</h3>
-            <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <form onSubmit={handleSubmit(onSubmit, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div className="field">
                 <label htmlFor="name">Nombre Completo</label>
                 <input 
@@ -125,8 +165,14 @@ export default function UserManagement() {
                 <label htmlFor="email">Correo</label>
                 <input 
                   id="email"
-                  type="email"
-                  {...register('email', { required: 'El correo es obligatorio' })}
+                  type="text" // Tipo 'text' para evitar la validación nativa de HTML5
+                  {...register('email', { 
+                    required: 'El correo es obligatorio',
+                    pattern: {
+                        value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                        message: "Correo inválido (debe contener '@' y formato correcto)",
+                    },
+                  })}
                   className={errors.email ? 'input-error' : ''}
                 />
                  {errors.email && <small className="input-hint">{errors.email.message}</small>}
@@ -157,6 +203,88 @@ export default function UserManagement() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* --- MODAL DE ERRORES DE VALIDACIÓN (Pop-up) --- */}
+      {modalErrorOpen && (
+          <div
+            className="modal-backdrop"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="validation-modal-title"
+            onClick={() => setModalErrorOpen(false)}
+          >
+            <div
+              className="modal-card"
+              onClick={(e) => e.stopPropagation()}
+              role="document"
+            >
+              <h3 id="validation-modal-title" style={{color: '#e35c5c'}}>¡Errores de Validación!</h3>
+              <p className="modal-subtitle">{modalTitle}</p>
+              <ul className="modal-list">
+                {modalLines.map((line, idx) => (
+                  <li key={idx}>{line}</li>
+                ))}
+              </ul>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  onClick={() => setModalErrorOpen(false)}
+                  className="btn btn--primary"
+                  style={{ background: '#e35c5c' }} 
+                >
+                  Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+      {/* --- NUEVO MODAL: CONFIRMACIÓN DE ELIMINACIÓN --- */}
+      {isDeleteModalOpen && userToDelete && (
+          <div
+              className="modal-backdrop"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-modal-title"
+              onClick={() => setIsDeleteModalOpen(false)}
+          >
+              <div
+                  className="modal-card"
+                  onClick={(e) => e.stopPropagation()}
+                  role="document"
+                  style={{ maxWidth: '400px' }}
+              >
+                  <h3 id="delete-modal-title" style={{ color: '#e35c5c', margin: '0 0 10px' }}>
+                      Confirmar Eliminación
+                  </h3>
+                  <p style={{ color: '#555', marginBottom: '20px' }}>
+                      ¿Estás seguro de que deseas eliminar al usuario **{userToDelete.name}**? Esta acción es irreversible.
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                      <button
+                          type="button"
+                          onClick={() => setIsDeleteModalOpen(false)}
+                          style={{ 
+                              background: '#f0f0f0', color: '#4a0376', padding: '10px 14px', border: 'none', 
+                              borderRadius: '10px', fontWeight: '700', cursor: 'pointer'
+                          }}
+                      >
+                          Cancelar
+                      </button>
+                      <button
+                          type="button"
+                          onClick={confirmDeletion}
+                          style={{ 
+                              background: '#e35c5c', color: '#fff', padding: '10px 14px', border: 'none', 
+                              borderRadius: '10px', fontWeight: '700', cursor: 'pointer'
+                          }}
+                      >
+                          Sí, Eliminar
+                      </button>
+                  </div>
+              </div>
+          </div>
       )}
     </div>
   );
