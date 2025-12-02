@@ -1,74 +1,45 @@
-// src/pages/RecetasMedicas.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+// src/pages/AgendaMedica.jsx
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
-import logo from '../assets/logo_drfachero.png'; // Usado en el Modal de Impresión
 
-// URL base de la API para Recetas
-const API_RECIPES_URL = 'http://localhost:8080/api/recipes';
+// URL base de la API para Citas
+const API_APPOINTMENTS_URL = 'http://localhost:8080/api/appointments'; 
+
+// --- FUNCIÓN DE UTILIDAD: Obtener el token JWT ---
+const getAuthHeaders = () => {
+    const token = localStorage.getItem("authToken");
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+        // Agrega el token en el formato Bearer
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+};
 
 // --- FUNCIÓN DE UTILIDAD: MANEJO SEGURO DE ERRORES DE API ---
 // Lee el cuerpo de la respuesta. Intenta JSON, si falla, lee como texto.
 const getSafeErrorMessage = async (response) => {
     try {
-        // 1. Intenta leer como JSON (para errores de validación de backend)
         const errorBody = await response.json();
         
-        // Intenta extraer el mensaje del error de Spring Boot o usar un mensaje genérico
+        // Intenta extraer el mensaje del error de Spring Boot
         if (errorBody.errors && errorBody.errors.length > 0) {
             return errorBody.errors.map(err => `${err.field}: ${err.defaultMessage}`).join('; ');
         }
         return errorBody.message || errorBody.error || JSON.stringify(errorBody);
 
-    } catch (_e) { // Corregido: 'e' cambiado a '_e'
-        // 2. Si falla la lectura JSON, lee como texto (para errores no JSON)
+    } catch (_e) { // Uso de _e para evitar el warning de ESLint
+        // Si falla la lectura JSON, lee como texto
         try {
             const errorText = await response.text();
             return errorText || `Error HTTP ${response.status}. Respuesta vacía.`;
-        } catch (_e) { // Corregido: 'e' cambiado a '_e'
+        } catch (_e) { // Uso de _e para evitar el warning de ESLint
             return `Error HTTP ${response.status}. Fallo al procesar la respuesta.`;
         }
     }
 };
 
-// --- FUNCIÓN UTILITARIA para EXPORTAR a CSV/EXCEL ---
-const convertToCsvAndDownload = (data, filename, headers, keys) => {
-    if (!data || data.length === 0) {
-        alert("No hay datos para exportar.");
-        return;
-    }
-
-    // Encabezado con BOM (Byte Order Mark) para forzar UTF-8 en Excel
-    let csv = '\uFEFF'; 
-    
-    // 1. Añadir encabezados
-    csv += headers.join(';') + '\n';
-
-    // 2. Añadir filas de datos
-    data.forEach(item => {
-        const row = keys.map(key => {
-            let value = item[key] !== null && item[key] !== undefined ? item[key].toString() : '';
-            // Escape de comillas y delimitadores
-            if (value.includes(';') || value.includes('\n') || value.includes('"')) {
-                value = `"${value.replace(/"/g, '""')}"`;
-            }
-            return value;
-        }).join(';');
-        csv += row + '\n';
-    });
-
-    // 3. Crear Blob y descargar
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-};
-// --- FIN FUNCIÓN UTILITARIA ---
-
-
-// Estilos Reutilizados (se mantienen)
+// Estilos Reutilizados (Se mantienen)
 const topMenuStyle = {
     background: '#830cc4',
     color: '#fff',
@@ -106,193 +77,219 @@ const cardStyle = {
     textAlign: 'left',
 };
 
-// Datos del médico para la plantilla de receta (Ahora se usan en el Modal de Impresión)
-const medicData = {
-    name: "DR. ARTURO CRUZ RIVADENEIRA",
-    title: "Médico General",
-    dgp: "1342631",
-    cmp: "5024",
-    cedula: "12345",
-    address: "Sauces 6 Mz 250 V23 Telf 04-2967796",
-    phone: "Telf Cel 0983971613",
-    email: "arturocruzriv@hotmail.com"
-};
 
-export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
-    const [recipes, setRecipes] = useState([]); 
-    const [searchTerm, setSearchTerm] = useState('');
+// Función auxiliar para estructurar los datos del recibo (Necesaria para printAppointment)
+const getReceiptData = (appointment) => ({
+    patientName: appointment.patient.toUpperCase(),
+    patientId: appointment.rut,
+    medic: appointment.medic,
+    procedure: appointment.reason,
+    date: new Date(appointment.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+    time: appointment.time,
+    location: appointment.location,
+});
+
+
+export default function AgendaMedica({ goBack, setPagina, handleLogout }) { 
+    // State variables
+    const [appointments, setAppointments] = useState([]); 
+    const [searchTerm, setSearchTerm] = useState(''); // Usada en el input
     const [isLoading, setIsLoading] = useState(true); 
     const [error, setError] = useState(null); 
     
-    // Estados para Modales
-    const [isNewRecipeModalOpen, setIsNewRecipeModalOpen] = useState(false);
-    const [isPrintRecipeModalOpen, setIsPrintRecipeModalOpen] = useState(false);
-    const [recipeToPrint, setRecipeToPrint] = useState(null);
+    // Estados para Modales (Usados en JSX)
+    const [isNewAppointmentModalOpen, setIsNewAppointmentModalOpen] = useState(false); 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); 
-    const [recipeToDelete, setRecipeToDelete] = useState(null); 
-    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [appointmentToDelete, setAppointmentToDelete] = useState(null);
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+    const [receiptData, setReceiptData] = useState(null);
+    const [isValidationModalOpen, setIsValidationModalOpen] = useState(false);
+    const [validationModalLines, setValidationModalLines] = useState([]);
+
 
     const { register, handleSubmit, reset, formState: { errors } } = useForm();
     
+    
     // Función para manejar la navegación a las páginas de módulos
     const navigateTo = (page) => {
-        if (setPagina) {
-            setPagina(page);
-        } else {
-            console.error("setPagina is not defined. Cannot navigate to:", page); 
-        }
+      if (setPagina) {
+        setPagina(page);
+      } else {
+        console.error("setPagina is not defined. Cannot navigate to:", page); 
+      }
     };
     
     // --- FUNCIÓN DE CARGA DE DATOS DE LA API (GET) ---
-    const fetchRecipes = useCallback(async () => {
+    const fetchAppointments = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(API_RECIPES_URL); 
-
-            if (!response.ok) {
-                throw new Error(`Error al cargar las recetas. HTTP: ${response.status}. Asegúrese de que el endpoint GET ${API_RECIPES_URL} esté implementado.`);
-            }
-            
-            const data = await response.json();
-            setRecipes(Array.isArray(data) ? data : []);
-
-        } catch (err) {
-            console.error("Error al cargar recetas:", err);
-            // El error de conexión es genérico, no necesita manejo de JSON/texto aquí
-            setError(`Error al cargar recetas. Failed to fetch`); 
-            setRecipes([]);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchRecipes();
-    }, [fetchRecipes]);
-    // --- FIN FUNCIÓN DE CARGA ---
-
-
-    const filteredRecipes = recipes.filter(recipe =>
-        // Usa searchTerm
-        recipe.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        recipe.medicament.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    // --- FUNCIÓN: EXPORTAR RECETAS A EXCEL ---
-    const exportRecipesToExcel = () => {
-        const headers = ["ID", "Paciente", "Fecha", "Diagnóstico", "Medicamento", "Cantidad", "Duración", "Instrucciones"];
-        const keys = ["id", "patientName", "date", "diagnosis", "medicament", "quantity", "duration", "prescriptionDetail"];
-        const filename = `recetas_${new Date().toISOString().substring(0, 10)}.csv`;
-        
-        convertToCsvAndDownload(filteredRecipes, filename, headers, keys);
-    };
-    // --- FIN FUNCIÓN EXPORTAR RECETAS ---
-
-
-    // Abre modal de nueva receta
-    const openNewRecipeModal = () => {
-        reset({ date: new Date().toISOString().substring(0, 10) }); 
-        setIsNewRecipeModalOpen(true);
-    };
-
-    // --- ENVÍO DEL FORMULARIO DE NUEVA RECETA (POST a la API) ---
-    const onSubmitNewRecipe = async (data) => {
-        try {
-            const response = await fetch(API_RECIPES_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+            const response = await fetch(API_APPOINTMENTS_URL, {
+                // AÑADIDO: Incluimos el token JWT
+                headers: getAuthHeaders(),
             });
 
             if (!response.ok) {
-                // USANDO EL MANEJO DE ERRORES SEGURO
+                if (response.status === 401) {
+                    handleLogout(); // Forzar cierre de sesión si no está autorizado
+                    throw new Error("Sesión expirada o inválida. Por favor, ingrese de nuevo.");
+                }
+                throw new Error(`Error al cargar las citas. HTTP: ${response.status}. Asegúrese de que el endpoint GET ${API_APPOINTMENTS_URL} esté implementado.`);
+            }
+            
+            const data = await response.json();
+            setAppointments(Array.isArray(data) ? data : []);
+
+        } catch (err) {
+            console.error("Error al cargar citas:", err);
+            setError(`Error al cargar citas. Failed to fetch: ${err.message}`); 
+            setAppointments([]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [handleLogout]);
+
+    useEffect(() => {
+        fetchAppointments();
+    }, [fetchAppointments]);
+    // --- FIN FUNCIÓN DE CARGA ---
+
+    // La variable setSearchTerm se usa aquí:
+    const filteredAppointments = appointments.filter(app =>
+        app.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        app.reason.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // --- FUNCIÓN PARA CAMBIAR EL ESTADO (PUT/PATCH a la API) ---
+    const changeStatus = async (id, newStatus) => {
+        try {
+            const response = await fetch(`${API_APPOINTMENTS_URL}/${id}/status`, {
+                method: 'PATCH', 
+                // AÑADIDO: Incluimos el token JWT
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ status: newStatus }),
+            });
+
+            if (!response.ok) {
                 const errorMessage = await getSafeErrorMessage(response);
                 throw new Error(errorMessage);
             }
-            
-            setIsNewRecipeModalOpen(false);
-            reset();
-            fetchRecipes(); 
-            
-            setTimeout(() => {
-                setIsSuccessModalOpen(true); 
-            }, 100);
-            
+
+            setAppointments(appointments.map(app => 
+                app.id === id ? { ...app, status: newStatus } : app
+            ));
+
         } catch (err) {
-            console.error("Error al crear receta:", err);
-            setError(`Fallo al crear la receta: ${err.message}`);
+            console.error("Error al cambiar estado:", err);
+            alert(`Fallo al actualizar el estado de la cita: ${err.message}`);
         }
     };
     
-    // FUNCIÓN: Cierra el modal de éxito (Usada en el Modal)
-    const closeSuccessModal = () => {
-        setIsSuccessModalOpen(false);
+    // Función para mostrar el modal de impresión (Usa getReceiptData y setReceiptData)
+    const printAppointment = (appointment) => {
+        const data = getReceiptData(appointment);
+        setReceiptData(data);
+        setIsReceiptModalOpen(true);
+    };
+
+    // Función para crear nueva cita (POST a la API)
+    const onSubmitNewAppointment = async (data) => {
+        try {
+            // CORREGIDO: Aseguramos que se envía 'procedure' con el valor de 'procedure' y eliminamos 'reason'
+            const payload = {
+                patient: data.patient.toUpperCase(),
+                rut: data.rut,
+                time: data.time,
+                date: data.date,
+                reason: data.procedure, // Mapeamos a 'reason' que es el campo del modelo Appointment.java
+                medic: data.medic,
+                location: data.location || 'Consultorio 1', 
+                status: 'Confirmada',
+            };
+
+            const response = await fetch(API_APPOINTMENTS_URL, {
+                method: 'POST',
+                // AÑADIDO: Incluimos el token JWT
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorMessage = await getSafeErrorMessage(response);
+                throw new Error(errorMessage);
+            }
+
+            setIsNewAppointmentModalOpen(false);
+            reset();
+            fetchAppointments(); 
+
+        } catch (err) {
+            console.error("Error al crear cita:", err);
+            setError(`Fallo al crear la cita: ${err.message}`);
+        }
     };
     
-    // Abre modal de impresión (Usada en la tabla y usa setRecipeToPrint)
-    const printRecipe = (recipe) => {
-        setRecipeToPrint(recipe);
-        setIsPrintRecipeModalOpen(true);
+    // Función para manejar errores de validación (Usa setValidationModalLines)
+    const onInvalidNewAppointment = (errs) => {
+      const errorLines = Object.keys(errs).map(key => {
+        const fieldName = {
+            patient: 'Nombre del paciente',
+            rut: 'RUT/Identificación',
+            time: 'Hora',
+            date: 'Fecha',
+            procedure: 'Motivo/Procedimiento',
+            medic: 'Médico',
+        }[key] || key;
+        return `${fieldName}: Campo requerido`;
+      });
+      setValidationModalLines(errorLines);
+      setIsValidationModalOpen(true);
     };
     
-    // Abre modal de eliminación (Usada en la tabla)
-    const deleteRecipe = (recipe) => {
-        setRecipeToDelete(recipe);
+    // Título del modal de validación (Usado en JSX)
+    const memoValidationModalTitle = useMemo(() => {
+        const count = validationModalLines.length;
+        return count > 1 ? "Verifique los datos:" : "Verifique el dato:";
+    }, [validationModalLines]);
+
+
+    // Borrar Cita (Abre Modal)
+    const deleteAppointment = (appointment) => {
+        setAppointmentToDelete(appointment);
         setIsDeleteModalOpen(true);
     };
 
-    // --- FUNCIÓN PARA CONFIRMAR ELIMINACIÓN (DELETE a la API) ---
+    // Función para confirmar borrado (DELETE a la API)
     const confirmDeletion = async () => {
-        if (recipeToDelete) {
+        if (appointmentToDelete) {
             try {
-                const response = await fetch(`${API_RECIPES_URL}/${recipeToDelete.id}`, {
+                const response = await fetch(`${API_APPOINTMENTS_URL}/${appointmentToDelete.id}`, {
                     method: 'DELETE',
+                    // AÑADIDO: Incluimos el token JWT
+                    headers: getAuthHeaders(),
                 });
 
                 if (!response.ok) {
-                    // USANDO EL MANEJO DE ERRORES SEGURO
                     const errorMessage = await getSafeErrorMessage(response);
                     throw new Error(errorMessage);
                 }
                 
-                setRecipeToDelete(null);
+                setAppointmentToDelete(null);
                 setIsDeleteModalOpen(false);
-                fetchRecipes(); 
+                fetchAppointments(); 
                 
             } catch (err) {
-                console.error("Error al eliminar receta:", err);
-                alert(`Fallo al eliminar la receta: ${err.message}`);
+                console.error("Error al eliminar cita:", err);
+                alert(`Fallo al eliminar la cita: ${err.message}`);
             }
         }
     };
     
-    // Componente auxiliar para el Modal de Impresión (Para asegurar uso de logo, medicData y recipeToPrint)
-    const RecipePrintContent = () => (
-        <div id="print-recipe-area" style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-            <div style={{ display: 'flex', alignItems: 'center', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '20px' }}>
-                <div style={{ width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '20px' }}>
-                    <img src={logo} alt="Dr. Fachero Logo" style={{ height: '80px', marginBottom: '10px' }} />
-                </div>
-                <div style={{ flexGrow: 1, textAlign: 'center' }}>
-                    <h3 style={{ margin: '0', fontSize: '1.5rem', color: '#333' }}>{medicData.name}</h3>
-                    <p style={{ margin: '5px 0 0', fontSize: '1.2rem', color: '#555' }}>{medicData.title}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: '0.9rem', color: '#777' }}>
-                        D.G.P {medicData.dgp} & C.M.P {medicData.cmp} * Cédula Estatal No. {medicData.cedula}
-                    </p>
-                </div>
-            </div>
-            {/* Resto del contenido de la receta (usa recipeToPrint) */}
-            <h2 style={{ color: '#830cc4', textAlign: 'center', marginBottom: '30px', borderBottom: '2px solid #830cc4', paddingBottom: '10px' }}>RECETA MÉDICA</h2>
-            <div style={{ marginBottom: '20px', border: '1px solid #eee', padding: '15px', borderRadius: '8px', backgroundColor: '#f9f5ff' }}>
-                <p style={{ margin: 0 }}><strong>Paciente:</strong> {recipeToPrint?.patientName}</p>
-                <p style={{ margin: 0 }}><strong>Fecha:</strong> {recipeToPrint?.date}</p>
-                <p style={{ margin: 0 }}><strong>Diagnóstico:</strong> {recipeToPrint?.diagnosis}</p>
-            </div>
-            {/* Firma y pie de página que usan medicData */}
-            <div style={{ marginTop: '50px', borderTop: '1px solid #000', paddingTop: '10px', width: '30%', textAlign: 'center', marginLeft: 'auto' }}>
-                Firma y Sello del Médico
-            </div>
+    // Función para renderizar una línea del comprobante (Usada en el Modal)
+    const renderReceiptLine = (label, value) => (
+        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: '1rem' }}>
+            <strong style={{ minWidth: '150px' }}>{label}:</strong> 
+            <span style={{ textAlign: 'right', fontWeight: 'normal' }}>{value}</span>
         </div>
     );
 
@@ -301,9 +298,8 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
             
             {/* MENÚ SUPERIOR: NAVEGACIÓN CORREGIDA */}
             <div style={topMenuStyle}>
-                {/* Botón Volver (usa goBack) */}
                 <button 
-                    onClick={goBack} 
+                    onClick={goBack} // Volver al Dashboard
                     style={{ all: 'unset', color: '#fff', fontSize: '1.5rem', fontWeight: 800, cursor: 'pointer' }}
                 >
                     ← Volver al Dashboard
@@ -313,12 +309,12 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                     <li style={topMenuItemStyle}>
                       <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('pacientes')}>Pacientes</button>
                     </li>
-                    {/* Botón Agenda */}
-                    <li style={topMenuItemStyle}>
+                    {/* Botón Agenda (Activo) */}
+                    <li style={{...topMenuItemStyle, opacity: 1}}>
                       <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('agenda_medica')}>Agenda médica</button>
                     </li>
-                    {/* Botón Recetas (Activo) */}
-                    <li style={{...topMenuItemStyle, opacity: 1}}>
+                    {/* Botón Recetas */}
+                    <li style={topMenuItemStyle}>
                       <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('recetas_medicas')}>Recetas médicas</button>
                     </li>
                 </ul>
@@ -335,10 +331,8 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
             {/* CONTENIDO DEL MÓDULO */}
             <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
                 <div style={cardStyle}>
-                    <h1 style={{ color: '#830cc4', marginBottom: '10px' }}>Gestión de Recetas</h1>
-                    <p style={{ color: '#555', marginBottom: '30px' }}>
-                        Crea y administra las recetas médicas para tus pacientes.
-                    </p>
+                    <h1 style={{ color: '#830cc4', marginBottom: '10px' }}>Agenda de Citas Diarias</h1>
+                    <p style={{ color: '#555', marginBottom: '30px' }}>Citas programadas.</p>
                     
                     {error && (
                         <div style={{ padding: '10px', backgroundColor: '#fdd', border: '1px solid #e35c5c', color: '#e35c5c', borderRadius: '4px', marginBottom: '20px' }}>
@@ -350,80 +344,83 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                         
                         <input
                             type="text"
-                            placeholder="Buscar por paciente o medicamento..."
+                            placeholder="Buscar por paciente o motivo..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             style={{ padding: '10px', width: '40%', borderRadius: '8px', border: '1px solid #ccc' }}
                         />
                         
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            {/* NUEVO BOTÓN: EXPORTAR A EXCEL */}
+                        <div>
                             <button 
-                                onClick={exportRecipesToExcel}
-                                disabled={isLoading || filteredRecipes.length === 0}
-                                style={{ 
-                                    background: '#00b050', color: '#fff', padding: '10px 15px', border: 'none', 
-                                    borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold',
-                                    opacity: (isLoading || filteredRecipes.length === 0) ? 0.6 : 1 
-                                }}
-                                title="Exportar recetas visibles a CSV/Excel"
-                            >
-                                🗂️ Exportar Excel
-                            </button>
-                            {/* BOTÓN: NUEVA RECETA */}
-                            <button 
-                                onClick={openNewRecipeModal} 
+                                onClick={() => setIsNewAppointmentModalOpen(true)} 
                                 style={{ 
                                     background: '#830cc4', color: '#fff', padding: '10px 15px', border: 'none', 
                                     borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' 
                                 }}
                             >
-                                + Nueva Receta
+                                + Nueva Cita
                             </button>
                         </div>
                     </div>
-                    
+
                     {/* Mensaje de Carga */}
                     {isLoading && (
-                        <p style={{ textAlign: 'center', color: '#830cc4' }}>Cargando recetas...</p>
+                        <p style={{ textAlign: 'center', color: '#830cc4' }}>Cargando citas...</p>
                     )}
 
-                    {/* Tabla de Recetas */}
+                    {/* Tabla de Citas */}
                     {!isLoading && (
                         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
                             <thead>
                                 <tr style={{ borderBottom: '2px solid #830cc4', backgroundColor: '#f9f5ff' }}>
+                                    <th style={{ padding: '15px 10px', textAlign: 'left', width: '10%' }}>Hora</th>
                                     <th style={{ padding: '15px 10px', textAlign: 'left', width: '25%' }}>Paciente</th>
-                                    <th style={{ padding: '15px 10px', textAlign: 'left', width: '25%' }}>Medicamento</th>
-                                    <th style={{ padding: '15px 10px', textAlign: 'left', width: '15%' }}>Fecha</th>
+                                    <th style={{ padding: '15px 10px', textAlign: 'left', width: '25%' }}>Motivo</th>
+                                    <th style={{ padding: '15px 10px', textAlign: 'center', width: '15%' }}>Estado</th>
                                     <th style={{ padding: '15px 10px', textAlign: 'center', width: '25%' }}>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredRecipes.length > 0 ? filteredRecipes.map(recipe => (
-                                    <tr key={recipe.id} style={{ borderBottom: '1px solid #eee' }}>
-                                        <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>{recipe.patientName}</td>
-                                        <td style={{ padding: '15px 10px', color: '#555' }}>{recipe.medicament}</td>
-                                        <td style={{ padding: '15px 10px', color: '#555' }}>{recipe.date}</td>
+                                {filteredAppointments.length > 0 ? filteredAppointments.map(app => (
+                                    <tr key={app.id} style={{ borderBottom: '1px solid #eee' }}>
+                                        <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>{app.time}</td>
+                                        <td style={{ padding: '15px 10px' }}>{app.patient}</td>
+                                        <td style={{ padding: '15px 10px', color: '#555' }}>{app.reason}</td>
                                         <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                            <button 
-                                                onClick={() => printRecipe(recipe)} 
-                                                style={{ background: '#00b050', color: '#fff', padding: '8px', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '5px' }}
+                                            <select 
+                                                value={app.status}
+                                                onChange={(e) => changeStatus(app.id, e.target.value)}
+                                                style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                                                title="Cambiar estado"
                                             >
-                                                Imprimir
-                                            </button>
-                                            <button 
-                                                onClick={() => deleteRecipe(recipe)} 
-                                                style={{ background: '#e35c5c', color: '#fff', padding: '8px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                                            >
-                                                Eliminar
-                                            </button>
+                                                <option value="Confirmada">Confirmada</option>
+                                                <option value="En espera">En espera</option>
+                                                <option value="Finalizada">Finalizada</option>
+                                            </select>
+                                        </td>
+                                        <td style={{ padding: '15px 10px', textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                                                <button 
+                                                    onClick={() => printAppointment(app)}
+                                                    style={{ background: '#00b050', color: '#fff', padding: '5px 8px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                                                    title="Imprimir comprobante"
+                                                >
+                                                    📄
+                                                </button>
+                                                <button 
+                                                    onClick={() => deleteAppointment(app)}
+                                                    style={{ background: '#e35c5c', color: '#fff', padding: '5px 8px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
+                                                    title="Borrar cita"
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 )) : (
                                     <tr>
-                                        <td colSpan="4" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-                                            No se encontraron recetas en el sistema.
+                                        <td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+                                            No se encontraron citas programadas.
                                         </td>
                                     </tr>
                                 )}
@@ -432,19 +429,22 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                     )}
                 </div>
             </div>
-
-            {/* --- MODALES --- */}
             
-            {/* Modal de Nueva Receta */}
-            {isNewRecipeModalOpen && (
-                <div className="modal-backdrop" onClick={() => setIsNewRecipeModalOpen(false)} style={{ zIndex: 1000 }}>
+            {/* --- MODALES (Usan las variables de estado) --- */}
+            
+            {isNewAppointmentModalOpen && (
+                <div className="modal-backdrop" onClick={() => setIsNewAppointmentModalOpen(false)} style={{ zIndex: 1000 }}>
                     <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%' }}>
-                        <h2 style={{ color: '#830cc4', marginTop: 0 }}>Crear Nueva Receta</h2>
-                        <form onSubmit={handleSubmit(onSubmitNewRecipe)}>
+                        <h2 style={{ color: '#830cc4', marginTop: 0 }}>Agendar Nueva Cita</h2>
+                        <form onSubmit={handleSubmit(onSubmitNewAppointment, onInvalidNewAppointment)}>
                             <div style={{ marginBottom: '15px' }}>
                                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Paciente*</label>
-                                <input {...register("patientName", { required: "El nombre es obligatorio" })} placeholder="Nombre completo" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                {errors.patientName && <small style={{ color: '#e35c5c' }}>{errors.patientName.message || "Campo obligatorio"}</small>}
+                                <input {...register("patient", { required: "El nombre es obligatorio" })} placeholder="Nombre completo" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                {errors.patient && <small style={{ color: '#e35c5c' }}>{errors.patient.message || "Campo obligatorio"}</small>}
+                            </div>
+                            <div style={{ marginBottom: '15px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>RUT/Identificación</label>
+                                <input {...register("rut")} placeholder="RUT o ID del paciente" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
                             </div>
                             <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
                                 <div style={{ flex: 1 }}>
@@ -453,59 +453,58 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                                     {errors.date && <small style={{ color: '#e35c5c' }}>{errors.date.message || "Campo obligatorio"}</small>}
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Diagnóstico*</label>
-                                    <input {...register("diagnosis", { required: "El diagnóstico es obligatorio" })} placeholder="Diagnóstico principal" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                    {errors.diagnosis && <small style={{ color: '#e35c5c' }}>{errors.diagnosis.message || "Campo obligatorio"}</small>}
+                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Hora*</label>
+                                    <input type="time" {...register("time", { required: "La hora es obligatoria" })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                    {errors.time && <small style={{ color: '#e35c5c' }}>{errors.time.message || "Campo obligatorio"}</small>}
                                 </div>
                             </div>
                             <div style={{ marginBottom: '15px' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Medicamento*</label>
-                                <input {...register("medicament", { required: "El medicamento es obligatorio" })} placeholder="Nombre del medicamento" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                {errors.medicament && <small style={{ color: '#e35c5c' }}>{errors.medicament.message || "Campo obligatorio"}</small>}
-                            </div>
-                            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Cantidad/Dosis*</label>
-                                    <input {...register("quantity", { required: "La cantidad es obligatoria" })} placeholder="Ej: TAB 10mg/20mg #30" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                    {errors.quantity && <small style={{ color: '#e35c5c' }}>{errors.quantity.message || "Campo obligatorio"}</small>}
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Duración</label>
-                                    <input {...register("duration")} placeholder="Ej: 7 días o Continuo" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                </div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Motivo/Procedimiento*</label>
+                                <input {...register("procedure", { required: "El motivo es obligatorio" })} placeholder="Motivo de la consulta" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                                {errors.procedure && <small style={{ color: '#e35c5c' }}>{errors.procedure.message || "Campo obligatorio"}</small>}
                             </div>
                             <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Instrucciones de Uso*</label>
-                                <textarea {...register("prescriptionDetail", { required: "Las instrucciones son obligatorias" })} placeholder="Tomar una tableta cada noche..." rows="3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                {errors.prescriptionDetail && <small style={{ color: '#e35c5c' }}>{errors.prescriptionDetail.message || "Campo obligatorio"}</small>}
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Médico Tratante*</label>
+                                <select {...register("medic", { required: "El médico es obligatorio" })} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
+                                    <option value="">Seleccione...</option>
+                                    <option value="DR. FACHERO (PRO)">DR. FACHERO (PRO)</option>
+                                    <option value="DRA. JANE SMITH">DRA. JANE SMITH</option>
+                                </select>
+                                {errors.medic && <small style={{ color: '#e35c5c' }}>{errors.medic.message || "Campo obligatorio"}</small>}
                             </div>
-                            
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                                <button type="button" onClick={() => setIsNewRecipeModalOpen(false)} style={{ background: '#ccc', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
-                                <button type="submit" style={{ background: '#830cc4', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Generar Receta</button>
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Ubicación</label>
+                                <input {...register("location")} placeholder="Consultorio 1, Sala B, etc." style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                                <button type="button" onClick={() => setIsNewAppointmentModalOpen(false)} style={{ background: '#ccc', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
+                                <button type="submit" style={{ background: '#830cc4', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Guardar Cita</button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
             
-            {/* Modal de éxito */}
-            {isSuccessModalOpen && (
-                <div className="modal-backdrop" onClick={closeSuccessModal} style={{ zIndex: 1000 }}>
+            {isValidationModalOpen && (
+                <div className="modal-backdrop" onClick={() => setIsValidationModalOpen(false)} style={{ zIndex: 1000 }}>
                     <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', width: '90%', textAlign: 'center' }}>
-                        <h2 style={{ color: '#00b050', marginTop: 0 }}>¡Receta Creada con Éxito!</h2>
-                        <p>La nueva receta ha sido guardada en el sistema.</p>
-                        <button onClick={closeSuccessModal} style={{ background: '#830cc4', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Entendido</button>
+                        <h2 style={{ color: '#e35c5c', marginTop: 0 }}>¡Atención!</h2>
+                        <p style={{ color: '#e35c5c', fontWeight: 'bold' }}>{memoValidationModalTitle}</p>
+                        <ul style={{ listStyle: 'disc', paddingLeft: '20px', textAlign: 'left', margin: '20px 0' }}>
+                            {validationModalLines.map((line, index) => (
+                                <li key={index} style={{ color: '#333', marginBottom: '5px' }}>{line}</li>
+                            ))}
+                        </ul>
+                        <button onClick={() => setIsValidationModalOpen(false)} style={{ background: '#830cc4', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Entendido</button>
                     </div>
                 </div>
             )}
-            
-            {/* Modal de Confirmación de Borrado */}
-            {isDeleteModalOpen && recipeToDelete && (
+
+            {isDeleteModalOpen && appointmentToDelete && (
                 <div className="modal-backdrop" onClick={() => setIsDeleteModalOpen(false)} style={{ zIndex: 1000 }}>
                     <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', width: '90%', textAlign: 'center' }}>
                         <h2 style={{ color: '#e35c5c', marginTop: 0 }}>Confirmar Eliminación</h2>
-                        <p>¿Estás seguro de que deseas eliminar la receta de **{recipeToDelete.patientName}**?</p>
+                        <p>¿Está seguro de que desea eliminar la cita de **{appointmentToDelete.patient}** a las **{appointmentToDelete.time}**?</p>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '20px' }}>
                             <button type="button" onClick={() => setIsDeleteModalOpen(false)} style={{ background: '#ccc', color: '#333', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cancelar</button>
                             <button type="button" onClick={confirmDeletion} style={{ background: '#e35c5c', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Eliminar</button>
@@ -514,15 +513,24 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                 </div>
             )}
 
-            {/* Modal de Impresión de Receta */}
-            {isPrintRecipeModalOpen && recipeToPrint && (
-                <div className="modal-backdrop" onClick={() => setIsPrintRecipeModalOpen(false)} style={{ zIndex: 1000 }}>
-                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', width: '90%' }}>
-                        <RecipePrintContent />
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                            <button onClick={() => window.print()} style={{ background: '#00b050', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Imprimir Receta</button>
-                            <button onClick={() => setIsPrintRecipeModalOpen(false)} style={{ background: '#830cc4', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Cerrar</button>
+            {isReceiptModalOpen && receiptData && (
+                <div className="modal-backdrop" onClick={() => setIsReceiptModalOpen(false)} style={{ zIndex: 1000 }}>
+                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px', width: '90%', textAlign: 'center' }}>
+                        <div style={{ border: '2px dashed #830cc4', padding: '20px' }}>
+                            <h2 style={{ color: '#830cc4', margin: '0 0 10px' }}>COMPROBANTE DE CITA</h2>
+                            <p style={{ color: '#555', margin: '0 0 20px', fontSize: '0.9rem' }}>Clínica Dr. Fachero - PRO</p>
+                            <div style={{ textAlign: 'left', marginBottom: '20px' }}>
+                                {renderReceiptLine("Fecha", receiptData.date)}
+                                {renderReceiptLine("Hora", receiptData.time)}
+                                {renderReceiptLine("Paciente", receiptData.patientName)}
+                                {renderReceiptLine("ID/RUT", receiptData.patientId)}
+                                {renderReceiptLine("Motivo", receiptData.procedure)}
+                                {renderReceiptLine("Médico", receiptData.medic)}
+                                {renderReceiptLine("Ubicación", receiptData.location)}
+                            </div>
+                            <p style={{ fontSize: '0.8rem', color: '#830cc4' }}>* Presentar este comprobante al ingresar.</p>
                         </div>
+                        <button onClick={() => setIsReceiptModalOpen(false)} style={{ background: '#830cc4', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', marginTop: '20px' }}>Cerrar</button>
                     </div>
                 </div>
             )}

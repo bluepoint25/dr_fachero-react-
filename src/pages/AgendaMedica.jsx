@@ -5,6 +5,17 @@ import { useForm } from 'react-hook-form';
 // URL base de la API para Citas
 const API_APPOINTMENTS_URL = 'http://localhost:8080/api/appointments'; 
 
+// --- FUNCIÓN DE UTILIDAD: Obtener el token JWT ---
+const getAuthHeaders = () => {
+    const token = localStorage.getItem("authToken");
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) {
+        // Agrega el token en el formato Bearer
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+};
+
 // --- FUNCIÓN DE UTILIDAD: MANEJO SEGURO DE ERRORES DE API ---
 // Lee el cuerpo de la respuesta. Intenta JSON, si falla, lee como texto.
 const getSafeErrorMessage = async (response) => {
@@ -79,7 +90,7 @@ const getReceiptData = (appointment) => ({
 });
 
 
-export default function AgendaMedica({ goBack, setPagina }) { 
+export default function AgendaMedica({ goBack, setPagina, handleLogout }) { 
     // State variables
     const [appointments, setAppointments] = useState([]); 
     const [searchTerm, setSearchTerm] = useState(''); // Usada en el input
@@ -113,9 +124,16 @@ export default function AgendaMedica({ goBack, setPagina }) {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(API_APPOINTMENTS_URL);
+            const response = await fetch(API_APPOINTMENTS_URL, {
+                // AÑADIDO: Incluimos el token JWT
+                headers: getAuthHeaders(),
+            });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    handleLogout(); // Forzar cierre de sesión si no está autorizado
+                    throw new Error("Sesión expirada o inválida. Por favor, ingrese de nuevo.");
+                }
                 throw new Error(`Error al cargar las citas. HTTP: ${response.status}. Asegúrese de que el endpoint GET ${API_APPOINTMENTS_URL} esté implementado.`);
             }
             
@@ -124,12 +142,12 @@ export default function AgendaMedica({ goBack, setPagina }) {
 
         } catch (err) {
             console.error("Error al cargar citas:", err);
-            setError(`Error al cargar citas. Failed to fetch`); 
+            setError(`Error al cargar citas. Failed to fetch: ${err.message}`); 
             setAppointments([]);
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [handleLogout]);
 
     useEffect(() => {
         fetchAppointments();
@@ -147,7 +165,8 @@ export default function AgendaMedica({ goBack, setPagina }) {
         try {
             const response = await fetch(`${API_APPOINTMENTS_URL}/${id}/status`, {
                 method: 'PATCH', 
-                headers: { 'Content-Type': 'application/json' },
+                // AÑADIDO: Incluimos el token JWT
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ status: newStatus }),
             });
 
@@ -182,7 +201,7 @@ export default function AgendaMedica({ goBack, setPagina }) {
                 rut: data.rut,
                 time: data.time,
                 date: data.date,
-                procedure: data.procedure, // Enviamos 'procedure' que es el campo del formulario
+                reason: data.procedure, // Mapeamos a 'reason' que es el campo del modelo Appointment.java
                 medic: data.medic,
                 location: data.location || 'Consultorio 1', 
                 status: 'Confirmada',
@@ -190,7 +209,8 @@ export default function AgendaMedica({ goBack, setPagina }) {
 
             const response = await fetch(API_APPOINTMENTS_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                // AÑADIDO: Incluimos el token JWT
+                headers: getAuthHeaders(),
                 body: JSON.stringify(payload),
             });
 
@@ -245,6 +265,8 @@ export default function AgendaMedica({ goBack, setPagina }) {
             try {
                 const response = await fetch(`${API_APPOINTMENTS_URL}/${appointmentToDelete.id}`, {
                     method: 'DELETE',
+                    // AÑADIDO: Incluimos el token JWT
+                    headers: getAuthHeaders(),
                 });
 
                 if (!response.ok) {
@@ -298,7 +320,7 @@ export default function AgendaMedica({ goBack, setPagina }) {
                 </ul>
                 {/* Botón Cerrar Sesión */}
                 <button 
-                    onClick={() => navigateTo('login')}
+                    onClick={handleLogout}
                     style={{ all: 'unset', background: 'rgba(255, 255, 255, 0.2)', border: 'none', color: '#fff', 
                             padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
                 >

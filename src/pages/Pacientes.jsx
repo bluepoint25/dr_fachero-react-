@@ -2,8 +2,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 
-// URL base de tu API Spring Boot
-const API_BASE_URL = 'http://localhost:8080/api/patients';
+// --- CENTRALIZACIÓN DE ENDPOINTS ---
+const API_BASE_URL = 'http://localhost:8080'; // <--- URL BASE DE SU API
+const API_PATIENTS_PATH = '/api/patients';
+// Endpoint completo de la API de pacientes
+const API_PATIENTS_ENDPOINT = `${API_BASE_URL}${API_PATIENTS_PATH}`;
+
 
 // --- FUNCIÓN DE UTILIDAD: MANEJO SEGURO DE ERRORES DE API ---
 // Lee el cuerpo de la respuesta. Intenta JSON, si falla, lee como texto.
@@ -159,9 +163,11 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(API_BASE_URL);
+            // USO DEL NUEVO ENDPOINT CENTRALIZADO
+            const response = await fetch(API_PATIENTS_ENDPOINT);
             if (!response.ok) {
-                throw new Error(`Error HTTP: ${response.status}. Asegúrese de que el endpoint GET ${API_BASE_URL} esté implementado.`);
+                // Modificado para usar la variable local en el mensaje
+                throw new Error(`Error HTTP: ${response.status}. Asegúrese de que el endpoint GET ${API_PATIENTS_ENDPOINT} esté implementado.`);
             }
             const data = await response.json();
             
@@ -171,7 +177,8 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
             setPatients(mappedData);
         } catch (err) {
             console.error("Error al cargar pacientes:", err);
-            setError("No se pudo conectar al API del servidor. Asegúrese de que Spring Boot esté activo en http://localhost:8080.");
+            // Modificado para usar la variable local en el mensaje
+            setError(`No se pudo conectar al API del servidor (${API_BASE_URL}). Asegúrese de que Spring Boot esté activo.`);
             setPatients([]);
         } finally {
             setIsLoading(false);
@@ -245,7 +252,8 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
                 clinicaId: 1, // AÑADIDO: ID mock para pasar la validación de suscripción
             };
             
-            const response = await fetch(API_BASE_URL, {
+            // USO DEL NUEVO ENDPOINT CENTRALIZADO
+            const response = await fetch(API_PATIENTS_ENDPOINT, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -283,7 +291,8 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
                 clinicaId: 1, // AÑADIDO: ID mock para pasar la validación de suscripción
             };
 
-            const response = await fetch(`${API_BASE_URL}/${patientToEdit.id}`, {
+            // USO DEL NUEVO ENDPOINT CENTRALIZADO
+            const response = await fetch(`${API_PATIENTS_ENDPOINT}/${patientToEdit.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -317,7 +326,8 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
         if (!patientToDelete) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/${patientToDelete.id}`, {
+            // USO DEL NUEVO ENDPOINT CENTRALIZADO
+            const response = await fetch(`${API_PATIENTS_ENDPOINT}/${patientToDelete.id}`, {
                 method: 'DELETE',
             });
 

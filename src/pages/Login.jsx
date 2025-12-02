@@ -2,6 +2,11 @@
 import { useForm } from "react-hook-form"; 
 import { useState, useEffect } from "react"; 
 import logo from '../assets/logo_drfachero.png';
+
+// --- CONFIGURACIÓN DE LA API ---
+const API_BASE_URL = 'http://localhost:8080';
+const API_LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login`;
+
 // Usaremos un Mock de Logo para la consistencia visual sin importar una imagen aquí.
 const MockLogo = ({ style }) => (
     <div style={{ 
@@ -23,7 +28,8 @@ const MockLogo = ({ style }) => (
 export default function Login({onLogin, setPagina}) {
     const [error, setError ]= useState(null);
     const [modalErrorOpen, setModalErrorOpen] = useState(false); 
-
+    // Usaremos 'email' en el formulario para más familiaridad, pero lo mapeamos a 'username' para la API
+    
     const{
         register,
         handleSubmit,
@@ -41,25 +47,52 @@ export default function Login({onLogin, setPagina}) {
         setError(null);
         setModalErrorOpen(false);
 
-        await new Promise((r)=>setTimeout(r,800));
-        let plan = null;
-        let name = '';
+        // Mapea 'email' del formulario a 'username' para el payload de la API
+        const payload = {
+            username: data.email, 
+            password: data.password,
+        };
 
-        // --- AUTH LOGIC (Usando credenciales de prueba) ---
-        if (data.email === "clinica_pro@pro.cl" && data.password === "drfachero123") {
-            plan = 'pro';
-            name = 'Dr. Pro Fachero'; 
-        } else if (data.email === "clinica_estandar@estandar.cl" && data.password === "drfachero123") {
-            plan = 'estandar';
-            name = 'Dr. Estándar Fachero';   
-        } else {
-            setError("Credenciales Inválidas. Prueba con pro@drfachero.com o estandar@drfachero.com (Contraseña: 123)"); 
-        }
-        // --- END AUTH LOGIC ---
+        try {
+            const response = await fetch(API_LOGIN_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
 
-        if (plan){
+            if (!response.ok) {
+                // Intenta leer el mensaje de error del cuerpo de la respuesta
+                let errorMessage = "Credenciales inválidas. Intente de nuevo.";
+                try {
+                    const errorBody = await response.json();
+                    errorMessage = errorBody.message || errorBody.error || "Error de autenticación desconocido.";
+                } catch {
+                    // Si falla la lectura JSON, usa el status text
+                    errorMessage = `Error HTTP ${response.status}: ${response.statusText}`;
+                }
+                throw new Error(errorMessage);
+            }
+            
+            // Autenticación exitosa
+            const authResponse = await response.json();
+            
+            // Decidir el plan basado en el rol (su API devuelve "ROLE_ADMIN")
+            let userPlan = 'estandar'; 
+            if (authResponse.role === 'ROLE_ADMIN') {
+                userPlan = 'pro'; 
+            }
+            
+            // Guardar el JWT para peticiones futuras (Ej: en localStorage o contexto)
+            localStorage.setItem("authToken", authResponse.jwt);
+            
             // Llama a handleLogin(name, plan) en App.jsx
-            onLogin(name, plan); 
+            // Usamos el username para el nombre de usuario mostrado en el dashboard
+            onLogin(authResponse.username, userPlan); 
+
+        } catch (err) {
+            // Mostrar el error en el modal
+            console.error("Error durante el login:", err);
+            setError(`Error de Acceso: ${err.message}`); 
         }
     };
 
@@ -87,20 +120,18 @@ export default function Login({onLogin, setPagina}) {
                 <h1>Iniciar Sesion</h1>
                 <p>Accede a tu panel de gestion de Dr. Fachero .</p>
                 <form onSubmit={handleSubmit(onValid)}>
-                    {/*Campo Email*/}
+                    {/*Campo Email/Username*/}
                     <div className="field">
-                        <label htmlFor="email">Correo</label>
+                        <label htmlFor="email">Usuario (Email o Nombre)</label>
                         < input
                         id="email"
-                        type="email"
-                        autoComplete="email"
+                        // El backend espera el username, que en su setup inicial es "admin"
+                        type="text" 
+                        autoComplete="username" 
                         aria-invalid={!!errors.email} 
                         {...register("email", {
-                            required:"El correo es Obligatorio",
-                            pattern:{
-                                value:/^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                                message:"Correo invalido",
-                            },
+                            required:"El usuario es Obligatorio",
+                            // Eliminamos la validación de formato de email para permitir el usuario "admin"
                         })}
                         className={errors.email ? "input-error" : ""}
                         disabled={isSubmitting}
