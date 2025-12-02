@@ -1224,3 +1224,94 @@ main {
   .why-mock { order: -1; }
   .why-list { display: inline-block; text-align: left; }
 }
+v/* ================================
+   LOGIN — estilos para tu JSX
+   ================================ */
+
+.login-page{
+  background:#fff;
+  position:relative; z-index:1;
+  padding:72px 0 104px;
+  width:100vw; left:50%; right:50%;
+  margin-left:-50vw; margin-right:-50vw;
+  display: flex;
+  justify-content: center;
+}
+
+.login-card{
+  background:#fff;
+  border:1px solid #ead8ff;
+  border-radius:20px;
+  box-shadow:0 18px 60px rgba(0,0,0,.06);
+  padding:32px;
+  max-width: 400px; 
+  width: 100%;
+  text-align: center;
+}
+
+.login-card h1{
+  color:var(--color-primary);
+  font-weight:800;
+  font-size:clamp(28px,4vw,36px);
+  margin:0 0 8px;
+}
+.login-card p{
+  color:var(--color-text-soft);
+  margin-bottom: 20px;
+}
+
+.login-card .field{
+    text-align: left;
+    margin-bottom: 16px;
+}
+
+/* CAMBIO: Se agregó input[type="text"] para que el usuario (admin) tenga estilo */
+.login-card input[type="text"],
+.login-card input[type="email"],
+.login-card input[type="password"] {
+  border:1px solid #ead8ff;
+  border-radius:12px;
+  padding:14px 16px;
+  font-size:16px;
+  background:#fff;
+  outline:none;
+  transition:border .15s, box-shadow .15s;
+  width: 100%; /* Asegura que ocupen el ancho completo */
+  box-sizing: border-box;
+}
+
+/* Reutilizando estilos de inputs del formulario de contacto */
+.login-card input:focus {
+  border-color:#cda6ff;
+  box-shadow:0 0 0 4px rgba(205,166,255,.25);
+}
+
+.login-card button[type="submit"]{
+  margin-top:10px;
+  display:inline-flex; align-items:center; justify-content:center;
+  width:100%;
+  padding:14px 18px;
+  border-radius:14px;
+  background:var(--color-primary-strong);
+  color:#fff; font-weight:800; border:none; cursor:pointer;
+  transition:transform .06s ease, filter .15s ease;
+}
+
+.form-error {
+    color: #e35c5c;
+    font-weight: 600;
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.forgot-password button {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: var(--color-primary);
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 14px;
+    margin-top: 10px;
+}

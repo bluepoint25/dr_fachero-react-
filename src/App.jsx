@@ -1,10 +1,4 @@
 // src/App.jsx
-// -------------------------------------------------------
-// Punto de entrada de la UI.
-// Implementa el ruteo básico basado en el hash (#).
-// Mantiene el estado de autenticación (userName, userPlan).
-// -------------------------------------------------------
-
 import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar.jsx";
 import Footer from "./components/Footer";
@@ -207,8 +201,10 @@ function App() {
     }
   }
 
-  // Oculta Navbar y Footer en rutas de autenticación y privadas
-const showNavbar = !isAuthenticated && pagina !== "login" && pagina !== "recuperacion";
+  // Oculta Navbar SOLO en recuperación o si está autenticado (el dashboard tiene su propio menú)
+  // CAMBIO: Se elimina 'pagina !== "login"' para que el Navbar aparezca en el login.
+  const showNavbar = !isAuthenticated && pagina !== "recuperacion";
+  
   const showFooter = !isAuthenticated && pagina !== "recuperacion"; 
 
   // Ajusta el margen superior e ignora el contenedor si es una página full-bleed
@@ -218,7 +214,6 @@ const showNavbar = !isAuthenticated && pagina !== "login" && pagina !== "recuper
     <>
       {showNavbar && <Navbar pagina={pagina} setPagina={setPagina} userPlan={userPlan} />}
       <main style={isFullBleedPage ? { marginTop: 0, maxWidth: '100%', padding: 0 } : { marginTop: 60 }}> 
-        {/* Eliminamos el div.container condicional para que el Login full-bleed funcione */}
         {pageContent}
       </main>
       {showFooter && <Footer pagina={pagina} setPagina={setPagina} />}

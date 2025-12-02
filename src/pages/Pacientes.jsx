@@ -2,54 +2,30 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 
-// --- CENTRALIZACIÓN DE ENDPOINTS ---
-const API_BASE_URL = 'http://localhost:8080'; // <--- URL BASE DE SU API
-const API_PATIENTS_PATH = '/api/patients';
-// Endpoint completo de la API de pacientes
-const API_PATIENTS_ENDPOINT = `${API_BASE_URL}${API_PATIENTS_PATH}`;
+// --- CONFIGURACIÓN DE LA API ---
+const API_BASE_URL = 'http://localhost:8080';
+const API_PATIENTS_ENDPOINT = `${API_BASE_URL}/api/patients`;
 
-
-// --- FUNCIÓN DE UTILIDAD: MANEJO SEGURO DE ERRORES DE API ---
-// Lee el cuerpo de la respuesta. Intenta JSON, si falla, lee como texto.
-const getSafeErrorMessage = async (response) => {
-    try {
-        const errorBody = await response.json();
-        
-        // Intenta extraer el mensaje del error de Spring Boot o usar un mensaje genérico
-        if (errorBody.errors && errorBody.errors.length > 0) {
-            return errorBody.errors.map(err => `${err.field}: ${err.defaultMessage}`).join('; ');
-        }
-        return errorBody.message || errorBody.error || JSON.stringify(errorBody);
-
-    } catch { // FIX: Se elimina la declaración de variable (_e) para evitar warning
-        // 2. Si falla la lectura JSON, lee como texto
-        try {
-            const errorText = await response.text();
-            return errorText || `Error HTTP ${response.status}. Respuesta vacía.`;
-        } catch { // FIX: Se elimina la declaración de variable (_e) para evitar warning
-            return `Error HTTP ${response.status}. Fallo al procesar la respuesta.`;
-        }
-    }
+// --- HELPER: HEADER CON TOKEN ---
+const getAuthHeaders = () => {
+    const token = localStorage.getItem("authToken");
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+    };
 };
 
-// --- FUNCIÓN UTILITARIA para EXPORTAR a CSV/EXCEL (Se mantiene) ---
+// --- HELPER EXCEL ---
 const convertToCsvAndDownload = (data, filename, headers, keys) => {
     if (!data || data.length === 0) {
         alert("No hay datos para exportar.");
         return;
     }
-
-    // Encabezado con BOM (Byte Order Mark) para forzar UTF-8 en Excel
     let csv = '\uFEFF'; 
-    
-    // 1. Añadir encabezados
     csv += headers.join(';') + '\n';
-
-    // 2. Añadir filas de datos
     data.forEach(item => {
         const row = keys.map(key => {
             let value = item[key] !== null && item[key] !== undefined ? item[key].toString() : '';
-            // Escape de comillas y delimitadores
             if (value.includes(';') || value.includes('\n') || value.includes('"')) {
                 value = `"${value.replace(/"/g, '""')}"`;
             }
@@ -57,8 +33,6 @@ const convertToCsvAndDownload = (data, filename, headers, keys) => {
         }).join(';');
         csv += row + '\n';
     });
-
-    // 3. Crear Blob y descargar
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -67,69 +41,6 @@ const convertToCsvAndDownload = (data, filename, headers, keys) => {
     link.click();
     document.body.removeChild(link);
 };
-// --- FIN FUNCIÓN UTILITARIA ---
-
-
-// --- HELPER PARA MAPEAR NOMBRES DE CAMPOS DE BACKEND A FRONTEND ---
-const mapPatientDataForFrontend = (patient) => ({
-    // Combina nombre y apellido para la visualización/filtrado en la tabla (patient.name)
-    name: `${patient.nombrePaciente || ''} ${patient.apellidoPaciente || ''}`.trim(),
-    
-    // Mapea y renombra otros campos necesarios para la tabla/acciones
-    id: patient.id,
-    rut: patient.rutPaciente, // Usa 'rut' en el frontend
-    phone: patient.telefonoPaciente, // Usa 'phone' en el frontend
-    diagnosis: patient.diagnostico, // Usa 'diagnosis' en el frontend
-    status: patient.status,
-    
-    // Mantiene los campos originales del backend para facilitar la edición y el reenvío
-    nombrePaciente: patient.nombrePaciente,
-    apellidoPaciente: patient.apellidoPaciente,
-    rutPaciente: patient.rutPaciente,
-    telefonoPaciente: patient.telefonoPaciente,
-    diagnostico: patient.diagnostico,
-});
-
-
-// --- ESTILOS UNIFICADOS DE DASHBOARD PRO (Se mantienen) ---
-const topMenuStyle = {
-    background: '#830cc4',
-    color: '#fff',
-    padding: '10px 20px',
-    borderRadius: '12px',
-    marginBottom: '30px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-};
-
-const topMenuItemsStyle = {
-    display: 'flex',
-    gap: '20px',
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
-};
-
-const topMenuItemStyle = {
-    padding: '5px 10px',
-    fontWeight: 600,
-    opacity: 0.85,
-    transition: 'opacity 0.2s',
-    whiteSpace: 'nowrap',
-};
-// --- FIN ESTILOS UNIFICADOS ---
-
-const cardStyle = {
-    backgroundColor: '#fff',
-    borderRadius: '12px',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.05)',
-    padding: '30px',
-    textAlign: 'left',
-};
-
 
 export default function Pacientes({ goBack, setPagina, handleLogout }) {
     const [patients, setPatients] = useState([]);
@@ -137,559 +48,313 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Estados para Modales
+    // Estados de Modales
     const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [patientToEdit, setPatientToEdit] = useState(null);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); 
-    const [patientToDelete, setPatientToDelete] = useState(null); 
-    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-    const [successMessage, setSuccessMessage] = useState("");
-
-    // Se cambia 'name' por 'nombre' y 'apellido' en useForm
-    const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false); // Nuevo estado para edición
+    const [patientToEdit, setPatientToEdit] = useState(null);      // Paciente a editar
     
-    // Función para manejar la navegación a las páginas de módulos
-    const navigateTo = (page) => {
-      if (setPagina) {
-        setPagina(page);
-      } else {
-        console.error("setPagina is not defined. Cannot navigate to:", page);
-      }
-    };
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [successMessage, setSuccessMessage] = useState(""); // Mensaje dinámico (Creado/Editado)
+    
+    const [patientToDelete, setPatientToDelete] = useState(null); 
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-    // --- FUNCIÓN PRINCIPAL: CARGAR PACIENTES (GET) ---
+    // Validación
+    const [showValidationModal, setShowValidationModal] = useState(false);
+    const [validationMessages, setValidationMessages] = useState([]);
+
+    const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
+
+    const navigateTo = (page) => { if (setPagina) setPagina(page); };
+
+    // --- CARGAR PACIENTES ---
     const fetchPatients = useCallback(async () => {
         setIsLoading(true);
-        setError(null);
         try {
-            // USO DEL NUEVO ENDPOINT CENTRALIZADO
-            const response = await fetch(API_PATIENTS_ENDPOINT);
-            if (!response.ok) {
-                // Modificado para usar la variable local en el mensaje
-                throw new Error(`Error HTTP: ${response.status}. Asegúrese de que el endpoint GET ${API_PATIENTS_ENDPOINT} esté implementado.`);
-            }
+            const response = await fetch(API_PATIENTS_ENDPOINT, { headers: getAuthHeaders() });
+            if (!response.ok) throw new Error(`Error ${response.status}: No se pudieron cargar los pacientes.`);
+            
             const data = await response.json();
-            
-            // APLICA MAPEO para compatibilidad con la tabla
-            const mappedData = Array.isArray(data) ? data.map(mapPatientDataForFrontend) : [];
-            
+            const mappedData = data.map(p => ({
+                id: p.id,
+                nombreCompleto: `${p.nombrePaciente} ${p.apellidoPaciente}`,
+                rut: p.rutPaciente,
+                telefono: p.telefono || '-',
+                extra: p.direccionPaciente || 'Sin observaciones',
+                // Guardamos datos crudos para edición
+                raw: p 
+            }));
             setPatients(mappedData);
+            setError(null);
         } catch (err) {
-            console.error("Error al cargar pacientes:", err);
-            // Modificado para usar la variable local en el mensaje
-            setError(`No se pudo conectar al API del servidor (${API_BASE_URL}). Asegúrese de que Spring Boot esté activo.`);
-            setPatients([]);
+            console.error(err);
+            setError("No se pudo conectar con el servidor.");
         } finally {
             setIsLoading(false);
         }
     }, []);
 
-    // Cargar pacientes al montar el componente
-    useEffect(() => {
-        fetchPatients();
-    }, [fetchPatients]);
+    useEffect(() => { fetchPatients(); }, [fetchPatients]);
 
-    const filteredPatients = patients.filter(patient =>
-        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.rut.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.diagnosis.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredPatients = patients.filter(p =>
+        p.nombreCompleto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.rut.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    
-    // --- FUNCIÓN EXPORTAR PACIENTES (Mantiene los nombres de campos del frontend) ---
-    const exportPatientsToExcel = () => {
-        const headers = ["ID", "Nombre Completo", "RUT", "Teléfono", "Diagnóstico", "Estatus"];
-        // Usa los campos mapeados para la tabla (incluyendo 'name' combinado)
-        const keys = ["id", "name", "rut", "phone", "diagnosis", "status"];
-        const filename = `pacientes_${new Date().toISOString().substring(0, 10)}.csv`;
-        
-        convertToCsvAndDownload(filteredPatients, filename, headers, keys);
-    };
-    
-    // --- MANEJO DE MODALES Y FORMULARIOS (Refactorizados) ---
 
-    const openNewPatientModal = () => {
-        reset();
-        setIsNewPatientModalOpen(true);
-        setIsEditModalOpen(false);
-        setPatientToEdit(null);
-    };
-
-    const openEditPatientModal = (patient) => {
+    // --- ABRIR MODAL DE EDICIÓN ---
+    const openEditModal = (patient) => {
         setPatientToEdit(patient);
-        setIsEditModalOpen(true);
-        setIsNewPatientModalOpen(false);
+        // Rellenar formulario con datos existentes
+        setValue("nombre", patient.raw.nombrePaciente);
+        setValue("apellido", patient.raw.apellidoPaciente);
+        setValue("rut", patient.raw.rutPaciente);
+        setValue("telefono", patient.raw.telefono);
+        setValue("diagnosis", patient.raw.direccionPaciente); // Usamos dirección como diagnosis
+        setValue("status", patient.raw.estado || "Activo");
         
-        // Llenar el formulario con los campos separados del backend (almacenados en el objeto patient)
-        setValue('nombre', patient.nombrePaciente);
-        setValue('apellido', patient.apellidoPaciente);
-        setValue('rut', patient.rut); 
-        setValue('phone', patient.phone);
-        setValue('diagnosis', patient.diagnosis);
-        setValue('status', patient.status);
-    };
-    
-    // Función para mostrar el modal de éxito con un mensaje
-    const showSuccessModal = (message) => {
-        setSuccessMessage(message);
-        setIsSuccessModalOpen(true);
-        setTimeout(() => setIsSuccessModalOpen(false), 3000); 
+        setIsEditModalOpen(true);
     };
 
-    // --- FUNCIONES CRUD ASÍNCRONAS (MODIFICADAS PARA USAR EL PAYLOAD CORRECTO) ---
-
-    // Crear Nuevo Paciente (POST)
+    // --- GUARDAR NUEVO PACIENTE ---
     const onSubmitNewPatient = async (data) => {
+        await handleSave(data, 'POST', API_PATIENTS_ENDPOINT, "Paciente creado exitosamente.");
+    };
+
+    // --- GUARDAR EDICIÓN PACIENTE ---
+    const onSubmitEditPatient = async (data) => {
+        if (!patientToEdit) return;
+        const url = `${API_PATIENTS_ENDPOINT}/${patientToEdit.id}`;
+        await handleSave(data, 'PUT', url, "Paciente actualizado exitosamente.");
+    };
+
+    // Lógica común de guardado
+    const handleSave = async (data, method, url, successMsg) => {
         try {
-            // Construir el payload con los nombres de campos del backend
             const payload = {
                 nombrePaciente: data.nombre,
                 apellidoPaciente: data.apellido,
                 rutPaciente: data.rut,
-                telefonoPaciente: data.phone,
-                diagnostico: data.diagnosis,
-                status: data.status,
-                clinicaId: 1, // AÑADIDO: ID mock para pasar la validación de suscripción
+                telefono: data.telefono,
+                direccionPaciente: data.diagnosis || "Sin observaciones",
+                fechaNacimiento: new Date().toISOString().split('T')[0],
+                genero: "Masculino",
+                estado: data.status
             };
-            
-            // USO DEL NUEVO ENDPOINT CENTRALIZADO
-            const response = await fetch(API_PATIENTS_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+
+            const response = await fetch(url, {
+                method: method,
+                headers: getAuthHeaders(),
                 body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
-                const errorMessage = await getSafeErrorMessage(response);
-                throw new Error(errorMessage);
+                const errText = await response.text();
+                throw new Error(errText || "Fallo al guardar.");
             }
 
             setIsNewPatientModalOpen(false);
-            reset();
-            
-            await fetchPatients();
-            showSuccessModal('Paciente creado con éxito.');
-
-        } catch (err) {
-            setError(`Fallo al guardar: ${err.message}`);
-        }
-    };
-
-    // Actualizar Paciente Existente (PUT)
-    const onSubmitEditPatient = async (data) => {
-        if (!patientToEdit) return;
-        
-        try {
-            // Construir el payload con los nombres de campos del backend
-            const payload = {
-                nombrePaciente: data.nombre,
-                apellidoPaciente: data.apellido,
-                rutPaciente: data.rut,
-                telefonoPaciente: data.phone,
-                diagnostico: data.diagnosis,
-                status: data.status,
-                clinicaId: 1, // AÑADIDO: ID mock para pasar la validación de suscripción
-            };
-
-            // USO DEL NUEVO ENDPOINT CENTRALIZADO
-            const response = await fetch(`${API_PATIENTS_ENDPOINT}/${patientToEdit.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            if (!response.ok) {
-                const errorMessage = await getSafeErrorMessage(response);
-                throw new Error(errorMessage);
-            }
-
             setIsEditModalOpen(false);
-            setPatientToEdit(null);
             reset();
-
-            await fetchPatients();
-            showSuccessModal('Paciente actualizado con éxito.');
+            setSuccessMessage(successMsg);
+            setIsSuccessModalOpen(true);
+            fetchPatients(); 
 
         } catch (err) {
-            setError(`Fallo al actualizar: ${err.message}`);
+            alert(`Error: ${err.message}`);
         }
     };
 
-    // Abre modal de eliminación
+    // --- VALIDACIÓN ---
+    const onInvalid = (errors) => {
+        const msgs = [];
+        if (errors.nombre) msgs.push("El Nombre es obligatorio.");
+        if (errors.apellido) msgs.push("El Apellido es obligatorio.");
+        if (errors.rut) msgs.push(errors.rut.message || "El RUT es inválido.");
+        setValidationMessages(msgs);
+        setShowValidationModal(true);
+    };
+
+    // --- ELIMINAR ---
     const deletePatient = (patient) => {
         setPatientToDelete(patient);
         setIsDeleteModalOpen(true);
     };
 
-    // Confirma la eliminación (DELETE)
     const confirmDeletion = async () => {
         if (!patientToDelete) return;
-
         try {
-            // USO DEL NUEVO ENDPOINT CENTRALIZADO
-            const response = await fetch(`${API_PATIENTS_ENDPOINT}/${patientToDelete.id}`, {
+            await fetch(`${API_PATIENTS_ENDPOINT}/${patientToDelete.id}`, {
                 method: 'DELETE',
+                headers: getAuthHeaders()
             });
-
-            if (!response.ok) {
-                const errorMessage = await getSafeErrorMessage(response);
-                throw new Error(errorMessage);
-            }
-            
             setIsDeleteModalOpen(false);
-            setPatientToDelete(null);
-
-            await fetchPatients();
-            showSuccessModal('Paciente eliminado con éxito.');
-
+            fetchPatients();
         } catch (err) {
-            setError(`Fallo al eliminar: ${err.message}`);
+            alert("Error al eliminar");
         }
     };
 
-    const getStatusStyle = (status) => ({
-        padding: '5px 10px', 
-        borderRadius: '15px', 
-        fontSize: '0.8rem', 
-        fontWeight: 'bold',
-        backgroundColor: status === 'Activo' ? '#e6ffe6' : '#fff0f0',
-        color: status === 'Activo' ? '#00b050' : '#e35c5c'
-    });
-
+    const exportPatientsToExcel = () => {
+        const headers = ["ID", "Nombre", "RUT", "Teléfono", "Info Extra"];
+        const keys = ["id", "nombreCompleto", "rut", "telefono", "extra"];
+        convertToCsvAndDownload(filteredPatients, "pacientes.csv", headers, keys);
+    };
 
     return (
-        <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#faf7ff' }}>
-            
-            {/* MENÚ SUPERIOR: NAVEGACIÓN */}
+        <div style={{ padding: '20px', backgroundColor: '#faf7ff', minHeight: '100vh' }}>
             <div style={topMenuStyle}>
-                {/* Botón Volver (usa goBack) */}
-                <button 
-                    onClick={goBack} 
-                    style={{ all: 'unset', color: '#fff', fontSize: '1.5rem', fontWeight: 800, cursor: 'pointer' }}
-                >
-                    ← Volver al Dashboard
-                </button>
-                <ul style={topMenuItemsStyle}>
-                    {/* Botón Pacientes (Activo) */}
-                    <li style={{...topMenuItemStyle, opacity: 1}}>
-                      <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('pacientes')}>Pacientes</button>
-                    </li>
-                    {/* Botón Agenda */}
-                    <li style={topMenuItemStyle}>
-                      <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('agenda_medica')}>Agenda médica</button>
-                    </li>
-                    {/* Botón Recetas */}
-                    <li style={topMenuItemStyle}>
-                      <button style={{all:'unset', color:'inherit', cursor:'pointer'}} onClick={() => navigateTo('recetas_medicas')}>Recetas médicas</button>
-                    </li>
-                </ul>
-                {/* Botón Cerrar Sesión (Usa handleLogout de App.jsx) */}
-                <button 
-                    onClick={handleLogout}
-                    style={{ all: 'unset', background: 'rgba(255, 255, 255, 0.2)', border: 'none', color: '#fff', 
-                            padding: '8px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
-                >
-                    Cerrar Sesión
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <button onClick={goBack} style={{ ...topBtnStyle, fontSize: '1.2rem', fontWeight: '800' }}>← Volver al Dashboard</button>
+                    <button onClick={() => navigateTo('pacientes')} style={{ ...topBtnStyle, opacity: 1, fontWeight: '700' }}>Pacientes</button>
+                    <button onClick={() => navigateTo('agenda_medica')} style={topBtnStyle}>Agenda médica</button>
+                    <button onClick={() => navigateTo('recetas_medicas')} style={topBtnStyle}>Recetas médicas</button>
+                </div>
+                <button onClick={handleLogout} style={logoutBtnStyle}>Cerrar Sesión</button>
             </div>
 
-            {/* CONTENIDO DEL MÓDULO */}
-            <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-                <div style={cardStyle}>
-                    <h1 style={{ color: '#830cc4', marginBottom: '10px' }}>Gestión de Pacientes</h1>
-                    <p style={{ color: '#555', marginBottom: '30px' }}>
-                        Administra la información de tus pacientes.
-                    </p>
+            <div style={cardStyle}>
+                <h1 style={{ color: '#830cc4', marginBottom: '5px' }}>Gestión de Pacientes</h1>
+                <p style={{ color: '#666', marginBottom: '20px' }}>Administra la información de tus pacientes.</p>
+                
+                {error && <p style={{ color: 'red', fontWeight: 'bold' }}>{error}</p>}
 
-                    {/* Mensajes de Error y Carga */}
-                    {error && (
-                        <div style={{ padding: '10px', backgroundColor: '#fdd', border: '1px solid #e35c5c', color: '#e35c5c', borderRadius: '4px', marginBottom: '20px' }}>
-                            **Error de Conexión:** {error}
-                        </div>
-                    )}
-
-                    {isLoading && !error && (
-                         <div style={{ padding: '10px', textAlign: 'center', color: '#830cc4', fontWeight: 'bold' }}>
-                            Cargando pacientes desde el API...
-                        </div>
-                    )}
-
-                    {/* Controles: Buscar y Botones de Acción */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-                        <input
-                            type="text"
-                            placeholder="Buscar por nombre, RUT o diagnóstico..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ padding: '10px', width: '40%', borderRadius: '8px', border: '1px solid #ccc' }}
-                        />
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            {/* BOTÓN: EXPORTAR A EXCEL */}
-                            <button 
-                                onClick={exportPatientsToExcel}
-                                disabled={isLoading || filteredPatients.length === 0}
-                                style={{ 
-                                    background: '#00b050', color: '#fff', padding: '10px 15px', border: 'none', 
-                                    borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold',
-                                    opacity: (isLoading || filteredPatients.length === 0) ? 0.6 : 1 
-                                }}
-                                title="Exportar pacientes visibles a CSV/Excel"
-                            >
-                                🗂️ Exportar Excel
-                            </button>
-                            {/* BOTÓN: NUEVO PACIENTE */}
-                            <button 
-                                onClick={openNewPatientModal}
-                                style={{ 
-                                    background: '#830cc4', color: '#fff', padding: '10px 15px', border: 'none', 
-                                    borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' 
-                                }}
-                            >
-                                + Nuevo Paciente
-                            </button>
-                        </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                    <input placeholder="Buscar paciente..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={searchInputStyle} />
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={exportPatientsToExcel} style={{ ...actionBtnStyle, background: '#00b050' }}>🗂️ Descargar Excel</button>
+                        <button onClick={() => { reset(); setIsNewPatientModalOpen(true); }} style={actionBtnStyle}>+ Nuevo Paciente</button>
                     </div>
+                </div>
 
-                    {/* Tabla de Pacientes */}
-                    {!isLoading && !error && (
-                        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '2px solid #830cc4', backgroundColor: '#f9f5ff' }}>
-                                    <th style={{ padding: '15px 10px', textAlign: 'left', width: '25%' }}>Nombre</th>
-                                    <th style={{ padding: '15px 10px', textAlign: 'left', width: '15%' }}>RUT</th>
-                                    <th style={{ padding: '15px 10px', textAlign: 'left', width: '25%' }}>Diagnóstico</th>
-                                    <th style={{ padding: '15px 10px', textAlign: 'center', width: '10%' }}>Estatus</th>
-                                    <th style={{ padding: '15px 10px', textAlign: 'center', width: '25%' }}>Acciones</th>
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
+                        <thead>
+                            <tr style={{ background: '#f3e8ff', color: '#4a0376' }}>
+                                <th style={thStyle}>Nombre</th>
+                                <th style={thStyle}>RUT</th>
+                                <th style={thStyle}>Teléfono</th>
+                                <th style={thStyle}>Info Extra</th>
+                                <th style={{ ...thStyle, textAlign: 'center' }}>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredPatients.length > 0 ? filteredPatients.map(p => (
+                                <tr key={p.id} style={{ borderBottom: '1px solid #eee' }}>
+                                    <td style={tdStyle}>{p.nombreCompleto}</td>
+                                    <td style={tdStyle}>{p.rut}</td>
+                                    <td style={tdStyle}>{p.telefono}</td>
+                                    <td style={tdStyle}>{p.extra}</td>
+                                    <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                        <button onClick={() => openEditModal(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', marginRight:'10px' }} title="Editar">✏️</button>
+                                        <button onClick={() => deletePatient(p)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }} title="Eliminar">🗑️</button>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {filteredPatients.length > 0 ? filteredPatients.map(patient => (
-                                    <tr key={patient.id} style={{ borderBottom: '1px solid #eee' }}>
-                                        <td style={{ padding: '15px 10px', fontWeight: 'bold' }}>{patient.name}</td>
-                                        <td style={{ padding: '15px 10px', color: '#555' }}>{patient.rut}</td>
-                                        <td style={{ padding: '15px 10px', color: '#555' }}>{patient.diagnosis}</td>
-                                        <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                            <span style={getStatusStyle(patient.status)}>
-                                                {patient.status}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '15px 10px', textAlign: 'center' }}>
-                                            <button 
-                                                onClick={() => openEditPatientModal(patient)} 
-                                                style={{ background: '#ffa500', color: '#fff', padding: '8px', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '5px' }}
-                                            >
-                                                Editar
-                                            </button>
-                                            <button 
-                                                onClick={() => deletePatient(patient)} 
-                                                style={{ background: '#e35c5c', color: '#fff', padding: '8px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                                            >
-                                                Eliminar
-                                            </button>
-                                        </td>
-                                    </tr>
-                                )) : (
-                                    <tr>
-                                        <td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-                                            {searchTerm ? "No se encontraron pacientes que coincidan con la búsqueda." : "No hay pacientes registrados. ¡Crea uno nuevo!"}
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    )}
+                            )) : (
+                                <tr><td colSpan="5" style={{ padding: '20px', textAlign: 'center', color: '#999' }}>No hay pacientes.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            {/* --- MODALES --- */}
-            {/* Modal 1: Nuevo Paciente (AJUSTADO: separamos Nombre y Apellido) */}
-            {isNewPatientModalOpen && (
-                <div className="modal-backdrop" onClick={() => setIsNewPatientModalOpen(false)}>
-                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: 'min(500px, 90vw)' }}>
-                        <h3 style={{ color: '#830cc4', margin: '0 0 15px' }}>Registrar Nuevo Paciente</h3>
-                        <form onSubmit={handleSubmit(onSubmitNewPatient)} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
-                            
-                            <div style={{ display: 'flex', gap: '15px', width: '100%' }}>
-                                {/* Campo NOMBRE */}
-                                <div className="field" style={{ flex: 1 }}>
-                                    <label htmlFor="nombre">Nombre*</label>
-                                    <input type="text" {...register('nombre', { required: 'El nombre es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                    {errors.nombre && <small style={{ color: '#e35c5c' }}>{errors.nombre.message}</small>}
+            {/* MODAL NUEVO / EDITAR PACIENTE (Reutilizamos estructura) */}
+            {(isNewPatientModalOpen || isEditModalOpen) && (
+                <div className="modal-backdrop" style={modalBackdropStyle} onClick={() => { setIsNewPatientModalOpen(false); setIsEditModalOpen(false); }}>
+                    <div className="modal-card" style={modalCardStyle} onClick={e => e.stopPropagation()}>
+                        <h2 style={{ color: '#830cc4', textAlign: 'center', marginBottom: '20px' }}>
+                            {isEditModalOpen ? "Editar Paciente" : "Registrar Nuevo Paciente"}
+                        </h2>
+                        
+                        <form onSubmit={handleSubmit(isEditModalOpen ? onSubmitEditPatient : onSubmitNewPatient, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                            <div style={{ display: 'flex', gap: '15px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={labelStyle}>Nombre*</label>
+                                    <input {...register("nombre", { required: true })} style={inputStyle} />
                                 </div>
-                                {/* Campo APELLIDO */}
-                                <div className="field" style={{ flex: 1 }}>
-                                    <label htmlFor="apellido">Apellido*</label>
-                                    <input type="text" {...register('apellido', { required: 'El apellido es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                    {errors.apellido && <small style={{ color: '#e35c5c' }}>{errors.apellido.message}</small>}
+                                <div style={{ flex: 1 }}>
+                                    <label style={labelStyle}>Apellido*</label>
+                                    <input {...register("apellido", { required: true })} style={inputStyle} />
                                 </div>
                             </div>
-                            
-                            {/* Campo RUT */}
-                            <div className="field">
-                                <label htmlFor="rut">RUT/Identificación*</label>
-                                <input type="text" {...register('rut', { required: 'El RUT es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                {errors.rut && <small style={{ color: '#e35c5c' }}>{errors.rut.message}</small>}
+                            <div>
+                                <label style={labelStyle}>RUT*</label>
+                                <input {...register("rut", { required: "RUT obligatorio", pattern: { value: /^\d{1,2}\.\d{3}\.\d{3}-[\dkK]$/, message: "Formato inválido (Ej: 12.345.678-9)" } })} placeholder="Ej: 12.345.678-9" style={inputStyle} />
                             </div>
-                            
-                            {/* Campo Teléfono */}
-                            <div className="field">
-                                <label htmlFor="phone">Teléfono de Contacto*</label>
-                                <input type="text" {...register('phone', { required: 'El teléfono es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                {errors.phone && <small style={{ color: '#e35c5c' }}>{errors.phone.message}</small>}
+                            <div>
+                                <label style={labelStyle}>Teléfono</label>
+                                <input {...register("telefono")} style={inputStyle} />
                             </div>
-
-                            {/* Campo Diagnóstico */}
-                            <div className="field">
-                                <label htmlFor="diagnosis">Diagnóstico Principal*</label>
-                                <input type="text" {...register('diagnosis', { required: 'El diagnóstico es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} placeholder="Ej: Hipertensión, Diabetes Tipo 2" />
-                                {errors.diagnosis && <small style={{ color: '#e35c5c' }}>{errors.diagnosis.message}</small>}
+                            <div>
+                                <label style={labelStyle}>Diagnóstico (Opcional)</label>
+                                <input {...register("diagnosis")} style={inputStyle} />
                             </div>
-
-                            {/* Campo Estatus */}
-                            <div className="field">
-                                <label htmlFor="status">Estatus*</label>
-                                <select {...register('status', { required: 'El estatus es obligatorio' })} defaultValue="Activo" style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
+                            <div>
+                                <label style={labelStyle}>Estatus</label>
+                                <select {...register('status')} style={inputStyle}>
                                     <option value="Activo">Activo</option>
                                     <option value="Inactivo">Inactivo</option>
-                                    <option value="Seguimiento">Seguimiento</option>
                                 </select>
-                                {errors.status && <small style={{ color: '#e35c5c' }}>{errors.status.message}</small>}
                             </div>
-                            
-                            <button type="submit" style={{ background: '#830cc4', color: '#fff', padding: '12px', borderRadius: '8px', border: 'none', marginTop: '10px' }}>
-                                Guardar Paciente
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            )}
-            
-            {/* Modal 2: Editar Paciente (AJUSTADO: separamos Nombre y Apellido) */}
-            {isEditModalOpen && patientToEdit && (
-                <div className="modal-backdrop" onClick={() => setIsEditModalOpen(false)}>
-                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ width: 'min(500px, 90vw)' }}>
-                        <h3 style={{ color: '#ffa500', margin: '0 0 15px' }}>Editar Paciente: {patientToEdit.name}</h3>
-                        <form onSubmit={handleSubmit(onSubmitEditPatient)} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
-                            
-                            <div style={{ display: 'flex', gap: '15px', width: '100%' }}>
-                                {/* Campo NOMBRE */}
-                                <div className="field" style={{ flex: 1 }}>
-                                    <label htmlFor="nombre">Nombre*</label>
-                                    <input type="text" {...register('nombre', { required: 'El nombre es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                    {errors.nombre && <small style={{ color: '#e35c5c' }}>{errors.nombre.message}</small>}
-                                </div>
-                                {/* Campo APELLIDO */}
-                                <div className="field" style={{ flex: 1 }}>
-                                    <label htmlFor="apellido">Apellido*</label>
-                                    <input type="text" {...register('apellido', { required: 'El apellido es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                    {errors.apellido && <small style={{ color: '#e35c5c' }}>{errors.apellido.message}</small>}
-                                </div>
-                            </div>
-                            
-                            {/* Campo RUT */}
-                            <div className="field">
-                                <label htmlFor="rut">RUT/Identificación*</label>
-                                <input type="text" {...register('rut', { required: 'El RUT es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                {errors.rut && <small style={{ color: '#e35c5c' }}>{errors.rut.message}</small>}
-                            </div>
-                            
-                            {/* Campo Teléfono */}
-                            <div className="field">
-                                <label htmlFor="phone">Teléfono de Contacto*</label>
-                                <input type="text" {...register('phone', { required: 'El teléfono es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                {errors.phone && <small style={{ color: '#e35c5c' }}>{errors.phone.message}</small>}
-                            </div>
-
-                            {/* Campo Diagnóstico */}
-                            <div className="field">
-                                <label htmlFor="diagnosis">Diagnóstico Principal*</label>
-                                <input type="text" {...register('diagnosis', { required: 'El diagnóstico es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }} />
-                                {errors.diagnosis && <small style={{ color: '#e35c5c' }}>{errors.diagnosis.message}</small>}
-                            </div>
-
-                            {/* Campo Estatus */}
-                            <div className="field">
-                                <label htmlFor="status">Estatus*</label>
-                                <select {...register('status', { required: 'El estatus es obligatorio' })} style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}>
-                                    <option value="Activo">Activo</option>
-                                    <option value="Inactivo">Inactivo</option>
-                                    <option value="Seguimiento">Seguimiento</option>
-                                </select>
-                                {errors.status && <small style={{ color: '#e35c5c' }}>{errors.status.message}</small>}
-                            </div>
-                            
-                            <button type="submit" style={{ background: '#ffa500', color: '#fff', padding: '12px', borderRadius: '8px', border: 'none', marginTop: '10px' }}>
-                                Actualizar Paciente
-                            </button>
+                            <button type="submit" style={modalBtnStyle}>{isEditModalOpen ? "Actualizar" : "Guardar"}</button>
                         </form>
                     </div>
                 </div>
             )}
 
-
-            {/* Modal 3: Confirmación de Eliminación (Se mantiene) */}
-            {isDeleteModalOpen && patientToDelete && (
-                <div className="modal-backdrop" onClick={() => setIsDeleteModalOpen(false)}>
-                    <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-                        <h3 style={{ color: '#e35c5c', margin: '0 0 10px' }}>Confirmar Eliminación</h3>
-                        <p style={{ color: '#555', marginBottom: '20px' }}>
-                            ¿Seguro que deseas eliminar a **{patientToDelete.name}** del registro de pacientes?
-                        </p>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                            <button
-                                type="button"
-                                onClick={() => setIsDeleteModalOpen(false)}
-                                style={{ background: '#f0f0f0', color: '#4a0376', padding: '10px 14px', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                type="button"
-                                onClick={confirmDeletion}
-                                style={{ background: '#e35c5c', color: '#fff', padding: '10px 14px', border: 'none', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}
-                            >
-                                Sí, Eliminar
-                            </button>
-                        </div>
+            {/* POP-UP VALIDACIÓN */}
+            {showValidationModal && (
+                <div className="modal-backdrop" style={modalBackdropStyle} onClick={() => setShowValidationModal(false)}>
+                    <div style={{ ...alertModalStyle, animation: 'shake 0.3s ease-in-out' }} onClick={e => e.stopPropagation()}>
+                        <h3 style={{ color: '#e35c5c', margin: '0 0 10px' }}>Faltan Datos</h3>
+                        <ul style={{ textAlign: 'left', paddingLeft: '20px', color: '#555', marginBottom: '20px' }}>
+                            {validationMessages.map((msg, idx) => <li key={idx}>{msg}</li>)}
+                        </ul>
+                        <button onClick={() => setShowValidationModal(false)} style={{ ...modalBtnStyle, background: '#e35c5c' }}>Entendido</button>
                     </div>
                 </div>
             )}
-            
-            {/* Modal 4: Confirmación de Éxito (Se mantiene) */}
+
+            {/* POP-UP ÉXITO */}
             {isSuccessModalOpen && (
-                <div 
-                    className="modal-backdrop" 
-                    role="dialog" 
-                    aria-modal="true" 
-                    onClick={() => setIsSuccessModalOpen(false)}
-                >
-                    <div
-                        className="modal-card"
-                        onClick={(e) => e.stopPropagation()}
-                        role="document"
-                        style={{ maxWidth: '400px', textAlign: 'center' }}
-                    >
-                        <h3 style={{ color: '#00b050', margin: '0 0 10px' }}>
-                            ¡Operación Exitosa!
-                        </h3>
-                        <p style={{ color: '#555', marginBottom: '20px' }}>
-                            {successMessage}
-                        </p>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-                            <button
-                                type="button"
-                                onClick={() => setIsSuccessModalOpen(false)}
-                                style={{ 
-                                    background: '#00b050', color: '#fff', padding: '10px 14px', border: 'none', 
-                                    borderRadius: '10px', fontWeight: '700', cursor: 'pointer'
-                                }}
-                            >
-                                Cerrar
-                            </button>
+                <div className="modal-backdrop" style={modalBackdropStyle}>
+                    <div style={{ ...alertModalStyle, textAlign: 'center' }}>
+                        <h2 style={{ color: '#00b050' }}>¡Éxito!</h2>
+                        <p style={{ color: '#555', marginBottom: '20px' }}>{successMessage}</p>
+                        <button onClick={() => setIsSuccessModalOpen(false)} style={{ ...modalBtnStyle, background: '#00b050' }}>Aceptar</button>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL ELIMINAR */}
+            {isDeleteModalOpen && (
+                <div className="modal-backdrop" style={modalBackdropStyle}>
+                    <div style={{ ...alertModalStyle, textAlign: 'center' }}>
+                        <h2 style={{ color: '#e35c5c' }}>¿Eliminar?</h2>
+                        <p style={{ color: '#555', marginBottom: '20px' }}>Esta acción no se puede deshacer.</p>
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                            <button onClick={() => setIsDeleteModalOpen(false)} style={{ ...modalBtnStyle, background: '#ccc', color: '#333' }}>Cancelar</button>
+                            <button onClick={confirmDeletion} style={{ ...modalBtnStyle, background: '#e35c5c' }}>Eliminar</button>
                         </div>
                     </div>
                 </div>
             )}
+            <style>{` @keyframes shake { 0% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } 100% { transform: translateX(0); } } `}</style>
         </div>
     );
 }
+
+// Estilos (Mismos que Recetas/Agenda)
+const topMenuStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#830cc4', padding: '12px 25px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', color: 'white' };
+const topBtnStyle = { all: 'unset', color: 'white', cursor: 'pointer', fontSize: '1rem', padding: '5px 10px', opacity: 0.9, transition: 'opacity 0.2s' };
+const logoutBtnStyle = { all: 'unset', background: 'rgba(255, 255, 255, 0.2)', padding: '8px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', color: 'white', transition: 'background 0.2s' };
+const cardStyle = { background: 'white', padding: '30px', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', maxWidth: '1100px', margin: '0 auto' };
+const searchInputStyle = { padding: '10px 15px', borderRadius: '8px', border: '1px solid #ddd', width: '100%', maxWidth: '350px', fontSize: '1rem' };
+const actionBtnStyle = { background: '#830cc4', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 5px rgba(0,0,0,0.1)' };
+const modalBackdropStyle = { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 };
+const modalCardStyle = { background: 'white', padding: '35px', borderRadius: '12px', width: '90%', maxWidth: '500px', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' };
+const alertModalStyle = { background: 'white', padding: '25px', borderRadius: '12px', width: '90%', maxWidth: '350px', boxShadow: '0 10px 30px rgba(0,0,0,0.2)', textAlign: 'center' };
+const inputStyle = { width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '1rem', boxSizing: 'border-box' };
+const labelStyle = { display: 'block', marginBottom: '5px', fontWeight: '700', fontSize: '0.9rem', color: '#333' };
+const modalBtnStyle = { width: '100%', padding: '12px', background: '#830cc4', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginTop: '10px' };
+const thStyle = { padding: '15px', textAlign: 'left', fontWeight: '700' };
+const tdStyle = { padding: '15px', borderBottom: '1px solid #f0f0f0', color: '#555' };
