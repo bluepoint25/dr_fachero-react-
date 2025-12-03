@@ -3,17 +3,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import logo from '../assets/logo_drfachero.png';
 
-// --- CONFIGURACIÓN DE LA API ---
 const API_BASE_URL = 'http://localhost:8080';
 const API_RECIPES_URL = `${API_BASE_URL}/api/recipes`;
 
-// --- HELPER: HEADER CON TOKEN ---
 const getAuthHeaders = () => {
     const token = localStorage.getItem("authToken");
     return { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' };
 };
 
-// Datos del médico (estáticos por ahora)
 const medicData = { name: "DR. ARTURO CRUZ RIVADENEIRA", title: "Médico General", dgp: "1342631", cmp: "5024", cedula: "12345", address: "Sauces 6 Mz 250 V23", phone: "0983971613", email: "arturocruzriv@hotmail.com" };
 
 export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
@@ -22,29 +19,25 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
     const [isLoading, setIsLoading] = useState(true); 
     const [error, setError] = useState(null); 
     
-    // Estados de Modales
+    // Estados Modales
     const [isNewRecipeModalOpen, setIsNewRecipeModalOpen] = useState(false);
-    const [isEditRecipeModalOpen, setIsEditRecipeModalOpen] = useState(false); // Nuevo estado edición
+    const [isEditRecipeModalOpen, setIsEditRecipeModalOpen] = useState(false);
     const [recipeToEdit, setRecipeToEdit] = useState(null);
 
     const [isPrintRecipeModalOpen, setIsPrintRecipeModalOpen] = useState(false);
     const [recipeToPrint, setRecipeToPrint] = useState(null);
-    
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); 
     const [recipeToDelete, setRecipeToDelete] = useState(null); 
     
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [successMessage, setSuccessMessage] = useState("");
-
-    // Validación
     const [showValidationModal, setShowValidationModal] = useState(false);
     const [validationMessages, setValidationMessages] = useState([]);
 
-    const { register, handleSubmit, reset, setValue } = useForm();
+    const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
     
     const navigateTo = (page) => { if (setPagina) setPagina(page); };
     
-    // --- CARGAR RECETAS ---
     const fetchRecipes = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -55,9 +48,8 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
             }
             const data = await response.json();
             setRecipes(Array.isArray(data) ? data : []);
-        } catch (err) {
-            setError(err.message); 
-        } finally { setIsLoading(false); }
+        } catch (err) { setError(err.message); } 
+        finally { setIsLoading(false); }
     }, [handleLogout]);
 
     useEffect(() => { fetchRecipes(); }, [fetchRecipes]);
@@ -67,7 +59,7 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
         r.medicament.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // --- ABRIR MODAL EDICIÓN ---
+    // Abrir Modal Editar
     const openEditRecipeModal = (recipe) => {
         setRecipeToEdit(recipe);
         setValue("patientName", recipe.patientName);
@@ -78,55 +70,60 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
         setValue("duration", recipe.duration);
         setValue("prescriptionDetail", recipe.prescriptionDetail);
         setIsEditRecipeModalOpen(true);
-    };
-    
-    // --- GUARDAR (NUEVO / EDITAR) ---
-    const onSubmitNewRecipe = async (data) => await handleSave(data, 'POST', API_RECIPES_URL, "Receta creada exitosamente.");
-    
-    const onSubmitEditRecipe = async (data) => {
-        if (!recipeToEdit) return;
-        await handleSave(data, 'PUT', `${API_RECIPES_URL}/${recipeToEdit.id}`, "Receta actualizada exitosamente.");
+        setIsNewRecipeModalOpen(false);
     };
 
-// Lógica unificada de guardado
-    const handleSave = async (data, isEdit) => {
+    // Abrir Modal Nuevo
+    const openNewRecipeModal = () => {
+        setRecipeToEdit(null);
+        reset();
+        setIsNewRecipeModalOpen(true);
+        setIsEditRecipeModalOpen(false);
+    };
+
+    // --- FUNCIÓN DE ENVÍO UNIFICADA (SOLUCIÓN DEL ERROR) ---
+    const onSubmitForm = async (data) => {
         try {
-            const url = isEdit ? `${API_RECIPES_URL}/${recipeToEdit.id}` : API_RECIPES_URL;
-            const method = isEdit ? 'PUT' : 'POST';
-            
-            // Payload exacto
-            const payload = {
-                patientName: data.patientName,
-                date: data.date,
-                diagnosis: data.diagnosis,
-                medicament: data.medicament,
-                quantity: data.quantity,
-                duration: data.duration,
-                prescriptionDetail: data.prescriptionDetail
-            };
+            let url = API_RECIPES_URL;
+            let method = 'POST';
+            let msg = "Receta creada exitosamente.";
+
+            // Si estamos editando, cambiamos URL y Método
+            if (isEditRecipeModalOpen) {
+                if (!recipeToEdit || !recipeToEdit.id) {
+                    alert("Error: No se identificó la receta a editar.");
+                    return;
+                }
+                url = `${API_RECIPES_URL}/${recipeToEdit.id}`;
+                method = 'PUT';
+                msg = "Receta actualizada exitosamente.";
+            }
 
             const response = await fetch(url, {
                 method: method,
                 headers: getAuthHeaders(),
-                body: JSON.stringify(payload),
+                body: JSON.stringify(data),
             });
 
             if (!response.ok) {
-                const body = await response.json().catch(() => ({}));
+                 const body = await response.json().catch(() => ({}));
                 throw new Error(`Error: ${body.message || response.statusText}`);
             }
             
+            // Cerrar todo y recargar
             setIsNewRecipeModalOpen(false);
             setIsEditRecipeModalOpen(false);
+            setRecipeToEdit(null);
             reset();
             fetchRecipes(); 
-            setSuccessMessage(isEdit ? "Receta actualizada." : "Receta creada.");
+            setSuccessMessage(msg);
             setIsSuccessModalOpen(true);
+
         } catch (err) {
             alert(err.message);
         }
     };
-    // --- VALIDACIÓN ---
+
     const onInvalid = (errors) => {
         const msgs = [];
         if (errors.patientName) msgs.push("El Paciente es obligatorio.");
@@ -136,9 +133,8 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
         setShowValidationModal(true);
     };
     
-    // --- ACCIONES ---
-    const printRecipe = (recipe) => { setRecipeToPrint(recipe); setIsPrintRecipeModalOpen(true); };
-    const deleteRecipe = (recipe) => { setRecipeToDelete(recipe); setIsDeleteModalOpen(true); };
+    const printRecipe = (r) => { setRecipeToPrint(r); setIsPrintRecipeModalOpen(true); };
+    const deleteRecipe = (r) => { setRecipeToDelete(r); setIsDeleteModalOpen(true); };
     
     const confirmDeletion = async () => {
         if (!recipeToDelete) return;
@@ -150,7 +146,6 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
         } catch (err) { alert("Fallo al eliminar: " + err.message); }
     };
     
-    // --- CONTENIDO IMPRIMIBLE ---
     const RecipePrintContent = () => (
         <div style={{ padding: '20px', fontFamily: 'Arial' }}>
             <div style={{ display: 'flex', borderBottom: '2px solid #000', paddingBottom: '10px', marginBottom: '20px' }}>
@@ -170,21 +165,20 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
     return (
         <div style={{ padding: '20px', backgroundColor: '#faf7ff', minHeight: '100vh' }}>
             <div style={topMenuStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <button onClick={goBack} style={{ ...topBtnStyle, fontSize: '1.2rem', fontWeight: '800' }}>← Volver al Dashboard</button>
-                    <button onClick={() => navigateTo('pacientes')} style={{ ...topBtnStyle, opacity: 1, fontWeight: '700' }}>Pacientes</button>
-                    <button onClick={() => navigateTo('agenda_medica')} style={topBtnStyle}>Agenda médica</button>
-                    <button onClick={() => navigateTo('recetas_medicas')} style={topBtnStyle}>Recetas médicas</button>
+                <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                    <button onClick={goBack} style={{...topBtnStyle, fontWeight:'800', fontSize:'1.2rem'}}>← Volver</button>
+                    <button onClick={() => navigateTo('pacientes')} style={topBtnStyle}>Pacientes</button>
+                    <button onClick={() => navigateTo('agenda_medica')} style={topBtnStyle}>Agenda</button>
+                    <button onClick={() => navigateTo('recetas_medicas')} style={{...topBtnStyle, opacity:1, fontWeight:'700'}}>Recetas</button>
                 </div>
                 <button onClick={handleLogout} style={logoutBtnStyle}>Cerrar Sesión</button>
             </div>
             
-            {/* CONTENIDO */}
             <div style={cardStyle}>
                 <h1 style={{ color: '#830cc4', marginBottom: '10px' }}>Gestión de Recetas</h1>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                     <input placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={searchInputStyle} />
-                    <button onClick={() => { reset(); setIsNewRecipeModalOpen(true); }} style={actionBtnStyle}>+ Nueva Receta</button>
+                    <button onClick={openNewRecipeModal} style={actionBtnStyle}>+ Nueva Receta</button>
                 </div>
                 
                 {!isLoading && !error && (
@@ -222,7 +216,7 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                 <div className="modal-backdrop" style={modalBackdropStyle} onClick={() => {setIsNewRecipeModalOpen(false); setIsEditRecipeModalOpen(false);}}>
                     <div className="modal-card" style={modalCardStyle} onClick={e => e.stopPropagation()}>
                         <h2 style={{ color: '#830cc4', textAlign: 'center' }}>{isEditRecipeModalOpen ? "Editar Receta" : "Nueva Receta"}</h2>
-                        <form onSubmit={handleSubmit(isEditRecipeModalOpen ? onSubmitEditRecipe : onSubmitNewRecipe, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <form onSubmit={handleSubmit(onSubmitForm, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <input {...register("patientName", { required: true })} placeholder="Paciente" style={inputStyle} />
                             <div style={{display:'flex', gap:'10px'}}>
                                 <input type="date" {...register("date", { required: true })} style={inputStyle} />
@@ -240,18 +234,16 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                 </div>
             )}
 
-            {/* MODAL VALIDACIÓN (ROJO) */}
+            {/* POP-UPS */}
              {showValidationModal && (
                 <div className="modal-backdrop" style={modalBackdropStyle} onClick={() => setShowValidationModal(false)}>
                     <div style={{ ...alertModalStyle, animation: 'shake 0.3s' }} onClick={e => e.stopPropagation()}>
                         <h3 style={{ color: '#e35c5c' }}>Faltan Datos</h3>
-                        <ul style={{ textAlign: 'left', paddingLeft: '20px' }}>{validationMessages.map((m, i) => <li key={i}>{m}</li>)}</ul>
+                        <ul>{validationMessages.map((m, i) => <li key={i}>{m}</li>)}</ul>
                         <button onClick={() => setShowValidationModal(false)} style={{ ...modalBtnStyle, background: '#e35c5c' }}>OK</button>
                     </div>
                 </div>
             )}
-
-            {/* MODAL ÉXITO (VERDE) */}
              {isSuccessModalOpen && (
                 <div className="modal-backdrop" style={modalBackdropStyle}>
                     <div style={{ ...alertModalStyle, textAlign: 'center' }}>
@@ -261,8 +253,6 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                     </div>
                 </div>
             )}
-
-            {/* MODAL ELIMINAR */}
             {isDeleteModalOpen && (
                 <div className="modal-backdrop" style={modalBackdropStyle}>
                     <div style={{ ...alertModalStyle, textAlign: 'center' }}>
@@ -272,8 +262,6 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
                     </div>
                 </div>
             )}
-
-            {/* MODAL IMPRIMIR */}
             {isPrintRecipeModalOpen && (
                 <div className="modal-backdrop" style={modalBackdropStyle} onClick={() => setIsPrintRecipeModalOpen(false)}>
                     <div style={{...modalCardStyle, maxWidth:'700px'}} onClick={e => e.stopPropagation()}>
@@ -287,7 +275,7 @@ export default function RecetasMedicas({ goBack, setPagina, handleLogout }) {
     );
 }
 
-// ESTILOS (Idénticos a Pacientes.jsx)
+// ESTILOS
 const topMenuStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#830cc4', padding: '12px 25px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', color: 'white' };
 const topBtnStyle = { all: 'unset', color: 'white', cursor: 'pointer', fontSize: '1rem', padding: '5px 10px', opacity: 0.9, transition: 'opacity 0.2s' };
 const logoutBtnStyle = { all: 'unset', background: 'rgba(255, 255, 255, 0.2)', padding: '8px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', color: 'white', transition: 'background 0.2s' };

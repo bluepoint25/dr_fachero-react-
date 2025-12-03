@@ -14,7 +14,7 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
     const [appointments, setAppointments] = useState([]); 
     const [searchTerm, setSearchTerm] = useState(''); 
     const [isLoading, setIsLoading] = useState(true); 
-    const [ setError] = useState(null); 
+    const [error, setError] = useState(null); 
     
     // Modales
     const [isNewAppointmentModalOpen, setIsNewAppointmentModalOpen] = useState(false); 
@@ -23,7 +23,8 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); 
     const [appointmentToDelete, setAppointmentToDelete] = useState(null);
-   
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+    const [receiptData, setReceiptData] = useState(null);
     
     const [showValidationModal, setShowValidationModal] = useState(false);
     const [validationMessages, setValidationMessages] = useState([]);
@@ -31,7 +32,7 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [successMessage, setSuccessMessage] = useState("");
 
-    const { register, handleSubmit, reset, setValue } = useForm();
+    const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm();
     
     const navigateTo = (page) => { if (setPagina) setPagina(page); };
     
@@ -68,52 +69,69 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
         setAppointmentToEdit(app);
         setValue("patient", app.patient);
         setValue("rut", app.rut);
-        setValue("date", app.date); // Formato YYYY-MM-DD
+        setValue("date", app.date); 
         setValue("time", app.time);
         setValue("procedure", app.reason);
         setValue("medic", app.medic);
         setValue("location", app.location);
         setIsEditAppointmentModalOpen(true);
+        setIsNewAppointmentModalOpen(false);
     };
 
-    const onSubmitNewAppointment = async (data) => await handleSave(data, 'POST', API_APPOINTMENTS_URL, "Cita agendada.");
-    const onSubmitEditAppointment = async (data) => {
-        if (!appointmentToEdit) return;
-        await handleSave(data, 'PUT', `${API_APPOINTMENTS_URL}/${appointmentToEdit.id}`, "Cita actualizada.");
+    const openNewModal = () => {
+        setAppointmentToEdit(null);
+        reset();
+        setIsNewAppointmentModalOpen(true);
+        setIsEditAppointmentModalOpen(false);
+    }
+
+    // --- FUNCIÓN UNIFICADA ---
+    const onSubmitForm = async (data) => {
+        try {
+            let url = API_APPOINTMENTS_URL;
+            let method = 'POST';
+            let msg = "Cita agendada.";
+            let currentStatus = 'Confirmada';
+
+            if (isEditAppointmentModalOpen) {
+                if (!appointmentToEdit || !appointmentToEdit.id) {
+                    alert("Error interno: No se encuentra la cita.");
+                    return;
+                }
+                url = `${API_APPOINTMENTS_URL}/${appointmentToEdit.id}`;
+                method = 'PUT';
+                msg = "Cita actualizada.";
+                currentStatus = appointmentToEdit.status;
+            }
+
+            const payload = {
+                patient: data.patient.toUpperCase(),
+                rut: data.rut,
+                time: data.time,
+                date: data.date,
+                reason: data.procedure, 
+                medic: data.medic,
+                location: data.location || 'Consultorio 1', 
+                status: currentStatus, 
+            };
+
+            const response = await fetch(url, {
+                method: method,
+                headers: getAuthHeaders(),
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) throw new Error("Fallo al guardar");
+
+            setIsNewAppointmentModalOpen(false);
+            setIsEditAppointmentModalOpen(false);
+            setAppointmentToEdit(null);
+            reset();
+            fetchAppointments(); 
+            setSuccessMessage(msg);
+            setIsSuccessModalOpen(true);
+        } catch (err) { alert(err.message); }
     };
-
-    const handleSave = async (data, isEdit) => {
-            try {
-                const url = isEdit ? `${API_APPOINTMENTS_URL}/${appointmentToEdit.id}` : API_APPOINTMENTS_URL;
-                const method = isEdit ? 'PUT' : 'POST';
-
-                const payload = {
-                    patient: data.patient.toUpperCase(),
-                    rut: data.rut,
-                    time: data.time,
-                    date: data.date,
-                    reason: data.procedure, 
-                    medic: data.medic,
-                    location: data.location || 'Consultorio 1', 
-                    status: isEdit ? appointmentToEdit.status : 'Confirmada', 
-                };
-
-                const response = await fetch(url, {
-                    method: method,
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(payload),
-                });
-
-                if (!response.ok) throw new Error("Fallo al guardar");
-
-                setIsNewAppointmentModalOpen(false);
-                setIsEditAppointmentModalOpen(false);
-                reset();
-                fetchAppointments(); 
-                setSuccessMessage(isEdit ? "Cita actualizada." : "Cita agendada.");
-                setIsSuccessModalOpen(true);
-            } catch (err) { alert(err.message); }
-        };
 
     const onInvalid = (errors) => {
         const msgs = [];
@@ -132,15 +150,26 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
             fetchAppointments(); 
         }
     };
+    
+    const printAppointment = (app) => {
+        setReceiptData({
+            patientName: app.patient,
+            date: app.date,
+            time: app.time,
+            medic: app.medic,
+            procedure: app.reason
+        });
+        setIsReceiptModalOpen(true);
+    };
 
     return (
         <div style={{ padding: '20px', backgroundColor: '#faf7ff', minHeight: '100vh' }}>
             <div style={topMenuStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                    <button onClick={goBack} style={{ ...topBtnStyle, fontSize: '1.2rem', fontWeight: '800' }}>← Volver al Dashboard</button>
-                    <button onClick={() => navigateTo('pacientes')} style={{ ...topBtnStyle, opacity: 1, fontWeight: '700' }}>Pacientes</button>
-                    <button onClick={() => navigateTo('agenda_medica')} style={topBtnStyle}>Agenda médica</button>
-                    <button onClick={() => navigateTo('recetas_medicas')} style={topBtnStyle}>Recetas médicas</button>
+                 <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                    <button onClick={goBack} style={{...topBtnStyle, fontWeight:'800', fontSize:'1.2rem'}}>← Volver</button>
+                    <button onClick={() => navigateTo('pacientes')} style={topBtnStyle}>Pacientes</button>
+                    <button onClick={() => navigateTo('agenda_medica')} style={{...topBtnStyle, opacity:1, fontWeight:'700'}}>Agenda</button>
+                    <button onClick={() => navigateTo('recetas_medicas')} style={topBtnStyle}>Recetas</button>
                 </div>
                 <button onClick={handleLogout} style={logoutBtnStyle}>Cerrar Sesión</button>
             </div>
@@ -149,7 +178,7 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
                 <h1 style={{ color: '#830cc4' }}>Agenda de Citas</h1>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                     <input placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={searchInputStyle} />
-                    <button onClick={() => { reset(); setIsNewAppointmentModalOpen(true); }} style={actionBtnStyle}>+ Nueva Cita</button>
+                    <button onClick={openNewModal} style={actionBtnStyle}>+ Nueva Cita</button>
                 </div>
 
                 {!isLoading && (
@@ -179,12 +208,12 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
                 )}
             </div>
 
-            {/* MODAL NUEVA / EDITAR CITA */}
+            {/* MODAL */}
             {(isNewAppointmentModalOpen || isEditAppointmentModalOpen) && (
                 <div className="modal-backdrop" style={modalBackdropStyle} onClick={() => {setIsNewAppointmentModalOpen(false); setIsEditAppointmentModalOpen(false);}}>
                     <div className="modal-card" style={modalCardStyle} onClick={e => e.stopPropagation()}>
                         <h2 style={{ color: '#830cc4', textAlign: 'center' }}>{isEditAppointmentModalOpen ? "Editar Cita" : "Nueva Cita"}</h2>
-                        <form onSubmit={handleSubmit(isEditAppointmentModalOpen ? onSubmitEditAppointment : onSubmitNewAppointment, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                        <form onSubmit={handleSubmit(onSubmitForm, onInvalid)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <input {...register("patient", { required: true })} placeholder="Paciente" style={inputStyle} />
                             <input {...register("rut")} placeholder="RUT" style={inputStyle} />
                             <div style={{display:'flex', gap:'10px'}}>
@@ -198,7 +227,7 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
                 </div>
             )}
 
-            {/* POPUPS (Validación, Éxito, Eliminar) - REUTILIZADOS */}
+            {/* POPUPS */}
              {showValidationModal && (
                 <div className="modal-backdrop" style={modalBackdropStyle} onClick={() => setShowValidationModal(false)}>
                     <div style={{ ...alertModalStyle }} onClick={e => e.stopPropagation()}>
@@ -231,7 +260,7 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
     );
 }
 
-// ESTILOS (Idénticos)
+// ESTILOS
 const topMenuStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#830cc4', padding: '12px 25px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', color: 'white' };
 const topBtnStyle = { all: 'unset', color: 'white', cursor: 'pointer', fontSize: '1rem', padding: '5px 10px', opacity: 0.9, transition: 'opacity 0.2s' };
 const logoutBtnStyle = { all: 'unset', background: 'rgba(255, 255, 255, 0.2)', padding: '8px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', color: 'white', transition: 'background 0.2s' };
