@@ -96,6 +96,11 @@ export default function DashboardEstandar({ userName, handleLogout, setPagina })
                         Agenda médica
                     </button>
                 </li>
+                                    <li style={topMenuItemStyle}>
+                        <button style={{all:'unset', cursor:'pointer'}} onClick={() => navigateTo('recetas_medicas')}>
+                            Recetas
+                        </button>
+                </li>
             </ul>
 
             <button 
@@ -131,15 +136,7 @@ export default function DashboardEstandar({ userName, handleLogout, setPagina })
                     **Aviso:** Mejora al Plan Pro para desbloquear funcionalidades avanzadas como Reportes, Facturación y usuarios ilimitados.
                 </p>
                 
-                <div style={{ textAlign: 'center', marginTop: '20px' }}>
-                    <button 
-                        onClick={() => setPagina("planes")} // Navega a la página de planes
-                        className="btn-cta btn-cta--primary"
-                        style={{ background: '#00b050', color: '#fff' }}
-                    >
-                        Ver Opciones de Mejora (Plan Pro)
-                    </button>
-                </div>
+
             </div>
         </div>
     </div>

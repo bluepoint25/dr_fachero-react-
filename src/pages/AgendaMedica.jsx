@@ -10,6 +10,33 @@ const getAuthHeaders = () => {
     return { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' };
 };
 
+// --- HELPER EXCEL ---
+const convertToCsvAndDownload = (data, filename, headers, keys) => {
+    if (!data || data.length === 0) {
+        alert("No hay datos para exportar.");
+        return;
+    }
+    let csv = '\uFEFF'; 
+    csv += headers.join(';') + '\n';
+    data.forEach(item => {
+        const row = keys.map(key => {
+            let value = item[key] !== null && item[key] !== undefined ? item[key].toString() : '';
+            if (value.includes(';') || value.includes('\n') || value.includes('"')) {
+                value = `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+        }).join(';');
+        csv += row + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 export default function AgendaMedica({ goBack, setPagina, handleLogout }) { 
     const [appointments, setAppointments] = useState([]); 
     const [searchTerm, setSearchTerm] = useState(''); 
@@ -53,6 +80,14 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
         app.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.reason.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    // --- EXPORTAR A EXCEL ---
+    const exportAppointmentsToExcel = () => {
+        const headers = ["ID", "Fecha", "Hora", "Paciente", "RUT", "Motivo", "Médico", "Ubicación", "Estado"];
+        const keys = ["id", "date", "time", "patient", "rut", "reason", "medic", "location", "status"];
+        const filename = `agenda_citas_${new Date().toISOString().substring(0, 10)}.csv`;
+        convertToCsvAndDownload(filteredAppointments, filename, headers, keys);
+    };
 
     const changeStatus = async (id, newStatus) => {
         try {
@@ -178,7 +213,10 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
                 <h1 style={{ color: '#830cc4' }}>Agenda de Citas</h1>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                     <input placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={searchInputStyle} />
-                    <button onClick={openNewModal} style={actionBtnStyle}>+ Nueva Cita</button>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={exportAppointmentsToExcel} style={{ ...actionBtnStyle, background: '#00b050' }}>🗂️ Excel</button>
+                        <button onClick={openNewModal} style={actionBtnStyle}>+ Nueva Cita</button>
+                    </div>
                 </div>
 
                 {!isLoading && (
@@ -208,7 +246,7 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
                 )}
             </div>
 
-            {/* MODAL */}
+            {/* MODAL NUEVA / EDITAR CITA */}
             {(isNewAppointmentModalOpen || isEditAppointmentModalOpen) && (
                 <div className="modal-backdrop" style={modalBackdropStyle} onClick={() => {setIsNewAppointmentModalOpen(false); setIsEditAppointmentModalOpen(false);}}>
                     <div className="modal-card" style={modalCardStyle} onClick={e => e.stopPropagation()}>
@@ -227,7 +265,7 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
                 </div>
             )}
 
-            {/* POPUPS */}
+            {/* POPUPS (Validación, Éxito, Eliminar) - REUTILIZADOS */}
              {showValidationModal && (
                 <div className="modal-backdrop" style={modalBackdropStyle} onClick={() => setShowValidationModal(false)}>
                     <div style={{ ...alertModalStyle }} onClick={e => e.stopPropagation()}>
@@ -260,7 +298,7 @@ export default function AgendaMedica({ goBack, setPagina, handleLogout }) {
     );
 }
 
-// ESTILOS
+// ESTILOS (Idénticos)
 const topMenuStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#830cc4', padding: '12px 25px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', color: 'white' };
 const topBtnStyle = { all: 'unset', color: 'white', cursor: 'pointer', fontSize: '1rem', padding: '5px 10px', opacity: 0.9, transition: 'opacity 0.2s' };
 const logoutBtnStyle = { all: 'unset', background: 'rgba(255, 255, 255, 0.2)', padding: '8px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', color: 'white', transition: 'background 0.2s' };

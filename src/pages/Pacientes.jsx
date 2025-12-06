@@ -178,7 +178,7 @@ export default function Pacientes({ goBack, setPagina, handleLogout }) {
         const headers = ["ID", "Nombre", "RUT", "Teléfono", "Info Extra"];
         const keys = ["id", "nombreCompleto", "rut", "telefono", "extra"];
         convertToCsvAndDownload(filteredPatients, "pacientes.csv", headers, keys);
-    };
+    }; 
 
     return (
         <div style={{ padding: '20px', backgroundColor: '#faf7ff', minHeight: '100vh' }}>
