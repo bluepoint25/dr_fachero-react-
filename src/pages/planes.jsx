@@ -34,7 +34,7 @@ export default function Planes({ setPagina }) {
             <li>👤 1 Usuario Profesional</li>
           </ul>
 
-          <button className="btn-plan btn-outline">Elegir Plan Estándar</button>
+          <button className="btn-plan btn-outline" onClick={() => setPagina?.("registro")}>Elegir Plan Estándar</button>
         </article>
 
         <article className="plan-card plan-pro" aria-labelledby="plan-pro-title">
@@ -59,7 +59,7 @@ export default function Planes({ setPagina }) {
             <li>👥 Usuarios ilimitados</li>
           </ul>
 
-          <button className="btn-plan btn-solid">Elegir Plan Pro</button>
+          <button className="btn-plan btn-solid" onClick={() => setPagina?.("registro")}>Elegir Plan Pro</button>
         </article>
       </div>
 

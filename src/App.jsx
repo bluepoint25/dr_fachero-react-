@@ -16,7 +16,7 @@ import DashboardPro from "./pages/DashboardPro.jsx";
 import Pacientes from "./pages/Pacientes.jsx";
 import AgendaMedica from "./pages/AgendaMedica.jsx";
 import RecetasMedicas from "./pages/RecetasMedicas.jsx";
-
+import Registro from "./pages/Registro.jsx";
 
 const pageTitles ={
   inicio:"Inicio",
@@ -26,6 +26,7 @@ const pageTitles ={
   planes:"Planes",
   contacto:"Contacto",
   login:"Login",
+  registro: "Crear Cuenta",
   recuperacion:"Recuperación de Contraseña",
   dashboard_estandar:"Mi Consultorio",
   dashboard_pro:"Centro de Gestion",
@@ -176,7 +177,11 @@ function App() {
     switch (pagina) {
       case "login":
         pageContent = <Login onLogin={handleLogin} setPagina={setPagina} />;
+
         break;
+      case "registro": // <--- AGREGAR ESTO
+        pageContent = <Registro setPagina={setPagina} />;
+      break;
       case "funcionalidades":
         pageContent = <Funcionalidades setPagina={setPagina} />;
         break;
@@ -208,7 +213,7 @@ function App() {
   const showFooter = !isAuthenticated && pagina !== "recuperacion"; 
 
   // Ajusta el margen superior e ignora el contenedor si es una página full-bleed
-  const isFullBleedPage = isAuthenticated || pagina === 'login' || pagina === 'recuperacion';
+  const isFullBleedPage = isAuthenticated || pagina === 'login' || pagina === 'recuperacion'|| pagina === 'registro';
 
   return (
     <>
