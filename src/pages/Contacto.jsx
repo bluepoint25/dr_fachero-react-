@@ -29,7 +29,7 @@ export default function Contacto() {
             pais: data.pais || 'CL', // Usar valor por defecto si no se selecciona
             telefono: data.telefono,
             mensaje: data.mensaje,
-            // NOTA: createdAt y id son manejados por el backend (JPA)
+
         };
 
         const response = await fetch(API_CONTACTO_URL, {
@@ -258,7 +258,6 @@ export default function Contacto() {
               <label htmlFor="telefono">Número de teléfono*</label>
 
               <div className="phone-group">
-                {/* Etiqueta accesible para el selector de país */}
                 <label htmlFor="pais" className="sr-only">
                   País
                 </label>

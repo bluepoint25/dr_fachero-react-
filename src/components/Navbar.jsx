@@ -77,6 +77,14 @@ function Navbar({ pagina, setPagina, userPlan }) {
           Blog
         </button>
 
+       <button
+          type="button"
+          className={`nav-btn ${pagina === "porque" ? "active" : ""}`}
+          onClick={() => go("porque")}
+        >
+          ¿Por qué?
+        </button>
+
         <button
           type="button"
           className={`nav-btn ${pagina === "contacto" ? "active" : ""}`}
